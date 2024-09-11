@@ -2,9 +2,9 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta http-equiv="X-UA-Compatible="IE=edge">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>AI Ball Game with Real-Time Updates</title>
+    <title>AI Ball Game with Real-Time Updates Using LLaMA</title>
     <style>
         body {
             display: flex;
@@ -74,12 +74,12 @@
 
             if (x + dx > canvas.width - ballRadius || x + dx < ballRadius) {
                 dx = -dx;
-                recordHit(`Hit border at (${x}, ${y})`);  // Correctly record hits
+                recordHit(`Hit border at (${x}, ${y})`);
                 learnFromAI();
             }
             if (y + dy > canvas.height - ballRadius || y + dy < ballRadius) {
                 dy = -dy;
-                recordHit(`Hit border at (${x}, ${y})`);  // Correctly record hits
+                recordHit(`Hit border at (${x}, ${y})`);
                 learnFromAI();
             }
 
@@ -115,20 +115,6 @@
             if (!matches || matches.length < 2) return null;
             const [x, y] = matches.map(Number);
             return { x, y };
-        }
-
-        // Function to record hits to the AI backend
-        async function recordHit(hitDescription) {
-            try {
-                const response = await fetch('https://llamaairesponse.loca.lt/generate', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ prompt: hitDescription })
-                });
-                await response.json();  // Just to ensure the call is made, no further action required here
-            } catch (error) {
-                console.error("Error sending hit data:", error);
-            }
         }
 
         async function updateInfo() {
