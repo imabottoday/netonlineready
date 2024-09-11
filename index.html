@@ -4,14 +4,40 @@
     <meta charset="UTF-8">
     <meta http-equiv="X-UA-Compatible" content="IE=edge">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>AI Ball Game with LLaMA</title>
+    <title>AI Ball Game with Real-Time Updates</title>
     <style>
-        body { display: flex; justify-content: center; align-items: center; height: 100vh; background: #f0f0f0; }
-        canvas { background: #ddd; }
+        body {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+            background: #f0f0f0;
+        }
+        canvas {
+            background: #ddd;
+            margin-bottom: 20px;
+        }
+        #info {
+            width: 800px;
+            text-align: left;
+            background: #fff;
+            padding: 10px;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+            font-family: Arial, sans-serif;
+            font-size: 14px;
+        }
     </style>
 </head>
 <body>
     <canvas id="gameCanvas" width="800" height="600"></canvas>
+    <div id="info">
+        <h3>AI Learning Information</h3>
+        <p><strong>Hits:</strong> <span id="hits">0</span></p>
+        <p><strong>Decisions:</strong></p>
+        <ul id="decisions"></ul>
+    </div>
 
     <script>
         const canvas = document.getElementById('gameCanvas');
@@ -50,12 +76,12 @@
             if (x + dx > canvas.width - ballRadius || x + dx < ballRadius) {
                 dx = -dx;
                 hits.push({ x: x, y: y });
-                learnFromAI();  // Use AI to learn from hits and spawn mines
+                learnFromAI();
             }
             if (y + dy > canvas.height - ballRadius || y + dy < ballRadius) {
                 dy = -dy;
                 hits.push({ x: x, y: y });
-                learnFromAI();  // Use AI to learn from hits and spawn mines
+                learnFromAI();
             }
 
             mines.forEach(mine => {
@@ -70,31 +96,45 @@
             y += dy;
         }
 
-        // AI integration to learn from hits and influence game logic
         async function learnFromAI() {
             try {
-                const response = await fetch('https://llamaairesponse.loca.lt/generate', {  // Replace with your Localtunnel URL
+                const response = await fetch('https://llamaairesponse.loca.lt/generate', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ prompt: `The ball hit the border at (${x}, ${y}). Where should we place mines?` })
                 });
                 const data = await response.json();
-                // Parse AI response to create new mine positions
-                const aiSuggestion = parseAISuggestion(data.response);  // Implement this function to extract coordinates
+                const aiSuggestion = parseAISuggestion(data.response);
                 mines.push(aiSuggestion);
             } catch (error) {
                 console.error("Error connecting to AI service:", error);
             }
         }
 
-        // Placeholder function to parse AI suggestions into mine coordinates
         function parseAISuggestion(aiResponse) {
-            // Example parsing logic - adjust based on actual response format from LLaMA
-            const [x, y] = aiResponse.match(/\d+/g).map(Number); // Simple regex to extract numbers
+            const [x, y] = aiResponse.match(/\d+/g).map(Number);
             return { x: x, y: y };
         }
 
+        async function updateInfo() {
+            try {
+                const response = await fetch('https://llamaairesponse.loca.lt/status');
+                const data = await response.json();
+                document.getElementById('hits').innerText = data.hits.length;
+                const decisionsList = document.getElementById('decisions');
+                decisionsList.innerHTML = '';
+                data.decisions.forEach((decision, index) => {
+                    const li = document.createElement('li');
+                    li.textContent = `${index + 1}: ${decision}`;
+                    decisionsList.appendChild(li);
+                });
+            } catch (error) {
+                console.error("Error fetching AI status:", error);
+            }
+        }
+
         setInterval(draw, 10);
+        setInterval(updateInfo, 5000);  // Update AI learning info every 5 seconds
     </script>
 </body>
 </html>
