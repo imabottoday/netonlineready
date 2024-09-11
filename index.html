@@ -51,9 +51,6 @@
         let particlesPopping = false;
         let popIndex = 0;
 
-        // Sound effect for popping
-        const popSound = new Audio('https://www.soundjay.com/button/sounds/button-16.mp3'); // Use a suitable popping sound URL
-
         // Resize canvas to be responsive
         function resizeCanvas() {
             canvas.width = window.innerWidth;
@@ -100,8 +97,6 @@
             pop() {
                 this.color = 'black';  // Change color to black
                 this.isPopping = true;
-                popSound.currentTime = 0; // Reset sound to play from start
-                popSound.play(); // Play popping sound
             }
         }
 
@@ -136,8 +131,12 @@
 
             // Pop particles one by one faster
             if (particlesPopping && popIndex < particles.length) {
-                particles[popIndex].pop();
-                popIndex += 3; // Increase pop rate for faster effect
+                for (let i = 0; i < 5; i++) {  // Pop multiple particles at once for faster effect
+                    if (popIndex < particles.length) {
+                        particles[popIndex].pop();
+                        popIndex++;
+                    }
+                }
             }
 
             // Reset the game once all particles have popped
