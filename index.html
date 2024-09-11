@@ -101,41 +101,44 @@
         }
 
         function createParticles() {
-            // Create a burst of particles at the center of the canvas
-            for (let i = 0; i < 5; i++) {
-                const x = canvas.width / 2;
-                const y = canvas.height / 2;
-                const dx = (Math.random() - 0.5) * 4;  // Random speed
-                const dy = (Math.random() - 0.5) * 4;  // Random speed
+            // Create more particles at each frame for faster filling
+            for (let i = 0; i < 20; i++) {
+                const x = Math.random() * canvas.width;
+                const y = Math.random() * canvas.height;
+                const dx = (Math.random() - 0.5) * 2;  // Slower initial speed
+                const dy = (Math.random() - 0.5) * 2;  // Slower initial speed
                 particles.push(new Particle(x, y, dx, dy));
             }
         }
 
         function animate() {
             ctx.clearRect(0, 0, canvas.width, canvas.height);
-            particles.forEach((particle, index) => {
+            particles.forEach((particle) => {
                 particle.update();
                 particle.draw();
             });
 
-            if (!particlesPopping && particles.length < (canvas.width * canvas.height) / (particleRadius * particleRadius * 4)) {
-                createParticles();  // Add particles until the screen is filled
+            // Fill the screen with particles
+            if (!particlesPopping && particles.length < (canvas.width * canvas.height) / (particleRadius * particleRadius * 1)) {
+                createParticles();  // Increase particle density for complete fill
             }
 
-            if (!particlesPopping && particles.length >= (canvas.width * canvas.height) / (particleRadius * particleRadius * 4)) {
+            // Start popping when particles fill the screen densely
+            if (!particlesPopping && particles.length >= (canvas.width * canvas.height) / (particleRadius * particleRadius * 1)) {
                 particlesPopping = true;  // Start popping when the screen is full
                 popIndex = 0;
             }
 
+            // Pop particles one by one
             if (particlesPopping && popIndex < particles.length) {
                 particles[popIndex].pop();
                 popIndex++;
             }
 
+            // Reset the game once all particles have popped
             if (particlesPopping && popIndex >= particles.length) {
-                // Reset the game once all particles have popped
                 particlesPopping = false;
-                particles = [];  // Clear all particles
+                particles = [];  // Clear all particles to restart the cycle
             }
 
             requestAnimationFrame(animate);
