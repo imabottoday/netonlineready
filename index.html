@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta http-equiv="X-UA-Compatible" content="IE=edge">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>2D Particle System Game</title>
+    <title>2D Particle System with Basket</title>
     <style>
         body {
             display: flex;
@@ -22,7 +22,8 @@
             box-shadow: 0 0 20px rgba(0, 0, 0, 0.5);
         }
         #info {
-            width: 800px;
+            width: 100%;
+            max-width: 800px;
             text-align: center;
             background: #fff;
             padding: 10px;
@@ -35,18 +36,34 @@
     </style>
 </head>
 <body>
-    <canvas id="gameCanvas" width="800" height="600"></canvas>
+    <canvas id="gameCanvas"></canvas>
     <div id="info">
-        <h3>2D Particle System Game</h3>
-        <p>Click to blow the particles away!</p>
+        <h3>2D Particle System Game with Basket</h3>
+        <p>Click to blow the particles away! Hold the mouse button down to collect particles in the basket.</p>
     </div>
 
     <script>
         const canvas = document.getElementById('gameCanvas');
         const ctx = canvas.getContext('2d');
-        const particles = [];
+        let particles = [];
         const gravity = 0.05;
         const particleRadius = 5;
+        const basket = {
+            x: canvas.width / 2 - 50,
+            y: canvas.height - 30,
+            width: 100,
+            height: 20,
+            holding: false
+        };
+
+        // Resize canvas to be responsive
+        function resizeCanvas() {
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+            basket.y = canvas.height - 30; // Update basket position on resize
+        }
+        window.addEventListener('resize', resizeCanvas);
+        resizeCanvas();  // Initial resize
 
         class Particle {
             constructor(x, y, dx, dy) {
@@ -59,9 +76,11 @@
             }
 
             update() {
-                this.dy += gravity;  // Apply gravity
-                this.x += this.dx;
-                this.y += this.dy;
+                if (!basket.holding) {
+                    this.dy += gravity;  // Apply gravity
+                    this.x += this.dx;
+                    this.y += this.dy;
+                }
 
                 // Bounce off the walls
                 if (this.x + this.radius > canvas.width || this.x - this.radius < 0) {
@@ -69,6 +88,11 @@
                 }
                 if (this.y + this.radius > canvas.height || this.y - this.radius < 0) {
                     this.dy = -this.dy * 0.8; // Apply a little damping when hitting the bottom
+                }
+
+                // Check for collision with the basket
+                if (this.y + this.radius > basket.y && this.x > basket.x && this.x < basket.x + basket.width) {
+                    this.dy = -Math.abs(this.dy);  // Bounce up when hitting the basket
                 }
             }
 
@@ -93,14 +117,24 @@
         }
 
         function blowParticles(x, y) {
-            particles.forEach(particle => {
-                const dx = particle.x - x;
-                const dy = particle.y - y;
-                const distance = Math.sqrt(dx * dx + dy * dy);
-                const force = Math.min(50 / (distance + 1), 10);  // Prevent division by zero and limit force
-                particle.dx += force * (dx / distance);
-                particle.dy += force * (dy / distance);
-            });
+            if (!basket.holding) {  // Only blow if not holding the basket
+                particles.forEach(particle => {
+                    const dx = particle.x - x;
+                    const dy = particle.y - y;
+                    const distance = Math.sqrt(dx * dx + dy * dy);
+                    const force = Math.min(50 / (distance + 1), 10);  // Prevent division by zero and limit force
+                    particle.dx += force * (dx / distance);
+                    particle.dy += force * (dy / distance);
+                });
+            }
+        }
+
+        function drawBasket() {
+            ctx.beginPath();
+            ctx.rect(basket.x, basket.y, basket.width, basket.height);
+            ctx.fillStyle = basket.holding ? 'green' : 'brown';  // Change color when holding
+            ctx.fill();
+            ctx.closePath();
         }
 
         function animate() {
@@ -120,14 +154,35 @@
                 createParticles();
             }
 
+            drawBasket();
+
             requestAnimationFrame(animate);
         }
 
-        canvas.addEventListener('click', (event) => {
+        // Mouse controls
+        canvas.addEventListener('mousedown', (event) => {
             const rect = canvas.getBoundingClientRect();
             const mouseX = event.clientX - rect.left;
             const mouseY = event.clientY - rect.top;
-            blowParticles(mouseX, mouseY);
+
+            // Check if the basket is clicked
+            if (mouseX > basket.x && mouseX < basket.x + basket.width && mouseY > basket.y && mouseY < basket.y + basket.height) {
+                basket.holding = true;
+            } else {
+                blowParticles(mouseX, mouseY);
+            }
+        });
+
+        canvas.addEventListener('mouseup', () => {
+            basket.holding = false;
+        });
+
+        canvas.addEventListener('mousemove', (event) => {
+            if (basket.holding) {
+                const rect = canvas.getBoundingClientRect();
+                const mouseX = event.clientX - rect.left;
+                basket.x = mouseX - basket.width / 2;  // Move basket with mouse
+            }
         });
 
         animate();
