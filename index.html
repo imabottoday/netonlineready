@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta http-equiv="X-UA-Compatible="IE=edge">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>AI Ball Game with Real-Time Updates</title>
     <style>
@@ -48,7 +48,6 @@
         let dy = -2;
         const ballRadius = 10;
         const mines = [];
-        const hits = [];
 
         function drawBall() {
             ctx.beginPath();
@@ -75,12 +74,12 @@
 
             if (x + dx > canvas.width - ballRadius || x + dx < ballRadius) {
                 dx = -dx;
-                hits.push({ x: x, y: y });
+                recordHit(`Hit border at (${x}, ${y})`);  // Correctly record hits
                 learnFromAI();
             }
             if (y + dy > canvas.height - ballRadius || y + dy < ballRadius) {
                 dy = -dy;
-                hits.push({ x: x, y: y });
+                recordHit(`Hit border at (${x}, ${y})`);  // Correctly record hits
                 learnFromAI();
             }
 
@@ -105,15 +104,31 @@
                 });
                 const data = await response.json();
                 const aiSuggestion = parseAISuggestion(data.response);
-                mines.push(aiSuggestion);
+                if (aiSuggestion) mines.push(aiSuggestion);
             } catch (error) {
                 console.error("Error connecting to AI service:", error);
             }
         }
 
         function parseAISuggestion(aiResponse) {
-            const [x, y] = aiResponse.match(/\d+/g).map(Number);
-            return { x: x, y: y };
+            const matches = aiResponse.match(/\d+/g);
+            if (!matches || matches.length < 2) return null;
+            const [x, y] = matches.map(Number);
+            return { x, y };
+        }
+
+        // Function to record hits to the AI backend
+        async function recordHit(hitDescription) {
+            try {
+                const response = await fetch('https://llamaairesponse.loca.lt/generate', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ prompt: hitDescription })
+                });
+                await response.json();  // Just to ensure the call is made, no further action required here
+            } catch (error) {
+                console.error("Error sending hit data:", error);
+            }
         }
 
         async function updateInfo() {
