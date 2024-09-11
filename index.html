@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta http-equiv="X-UA-Compatible" content="IE=edge">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>AI Ball Game</title>
+    <title>AI Ball Game with LLaMA</title>
     <style>
         body { display: flex; justify-content: center; align-items: center; height: 100vh; background: #f0f0f0; }
         canvas { background: #ddd; }
@@ -21,6 +21,8 @@
         let dx = 2;
         let dy = -2;
         const ballRadius = 10;
+        const mines = [];
+        const hits = [];
 
         function drawBall() {
             ctx.beginPath();
@@ -30,38 +32,69 @@
             ctx.closePath();
         }
 
+        function drawMines() {
+            ctx.fillStyle = "red";
+            mines.forEach(mine => {
+                ctx.beginPath();
+                ctx.arc(mine.x, mine.y, ballRadius, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.closePath();
+            });
+        }
+
         function draw() {
             ctx.clearRect(0, 0, canvas.width, canvas.height);
             drawBall();
+            drawMines();
 
-            // Ball movement logic
             if (x + dx > canvas.width - ballRadius || x + dx < ballRadius) {
                 dx = -dx;
+                hits.push({ x: x, y: y });
+                learnFromAI();  // Use AI to learn from hits and spawn mines
             }
             if (y + dy > canvas.height - ballRadius || y + dy < ballRadius) {
                 dy = -dy;
+                hits.push({ x: x, y: y });
+                learnFromAI();  // Use AI to learn from hits and spawn mines
             }
+
+            mines.forEach(mine => {
+                const distance = Math.sqrt((x - mine.x) ** 2 + (y - mine.y) ** 2);
+                if (distance < ballRadius * 2) {
+                    alert("Game Over! The ball hit a mine.");
+                    document.location.reload();
+                }
+            });
 
             x += dx;
             y += dy;
         }
 
-        setInterval(draw, 10);
-
-        // AI integration with user interaction
-        canvas.addEventListener('click', async () => {
+        // AI integration to learn from hits and influence game logic
+        async function learnFromAI() {
             try {
-                const response = await fetch('https://llamaairesponse.loca.lt', {  // Replace with your Localtunnel URL
+                const response = await fetch('https://llamaairesponse.loca.lt/generate', {  // Replace with your Localtunnel URL
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ prompt: 'The ball is moving: ' })
+                    body: JSON.stringify({ prompt: `The ball hit the border at (${x}, ${y}). Where should we place mines?` })
                 });
                 const data = await response.json();
-                alert(data.response); // Display AI message from LLaMA or GPT-2
+                // Parse AI response to create new mine positions
+                const aiSuggestion = parseAISuggestion(data.response);  // Implement this function to extract coordinates
+                mines.push(aiSuggestion);
             } catch (error) {
-                alert("Error connecting to AI service.");
+                console.error("Error connecting to AI service:", error);
             }
-        });
+        }
+
+        // Placeholder function to parse AI suggestions into mine coordinates
+        function parseAISuggestion(aiResponse) {
+            // Example parsing logic - adjust based on actual response format from LLaMA
+            const [x, y] = aiResponse.match(/\d+/g).map(Number); // Simple regex to extract numbers
+            return { x: x, y: y };
+        }
+
+        setInterval(draw, 10);
     </script>
 </body>
 </html>
