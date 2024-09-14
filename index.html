@@ -2,153 +2,90 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<title>Satisfying Circle Clicker Game</title>
+<title>Satisfying Bubble Pop Game</title>
 <style>
-  body {
-    margin: 0;
-    overflow: hidden;
-    background-color: #1a1a1a;
-    position: relative;
-    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-  }
-  #game {
-    position: relative;
-    width: 100vw;
-    height: 100vh;
-  }
-  .circle {
-    position: absolute;
-    border-radius: 50%;
-    background: radial-gradient(circle at center, #ff7eb9, #ff65a3);
-    width: 50px;
-    height: 50px;
-    opacity: 0;
-    transform: scale(0.5);
-    animation: appear 2s forwards;
-  }
-  @keyframes appear {
-    0% {
-      opacity: 0;
-      transform: scale(0.5);
+    body {
+        margin: 0;
+        overflow: hidden;
+        background: radial-gradient(circle, #a1c4fd, #c2e9fb);
     }
-    50% {
-      opacity: 1;
-      transform: scale(1.2);
+    .bubble {
+        position: absolute;
+        border-radius: 50%;
+        background: radial-gradient(circle at top left, #ff9a9e, #fad0c4);
+        box-shadow: 0 0 15px rgba(255, 255, 255, 0.5);
+        animation: floatUp 5s linear infinite;
     }
-    100% {
-      opacity: 1;
-      transform: scale(1);
+    @keyframes floatUp {
+        from { transform: translateY(100%); opacity: 0; }
+        to { transform: translateY(-150%); opacity: 1; }
     }
-  }
-  @keyframes fadeOut {
-    to {
-      opacity: 0;
-      transform: scale(0.5);
+    .pop-effect {
+        position: absolute;
+        border-radius: 50%;
+        background: radial-gradient(circle at center, #fbc2eb, #a6c1ee);
+        opacity: 0.8;
+        animation: popAnimation 0.5s forwards;
     }
-  }
-  #score, #timer {
-    position: fixed;
-    top: 10px;
-    color: #fff;
-    font-size: 24px;
-    user-select: none;
-  }
-  #score {
-    left: 10px;
-  }
-  #timer {
-    right: 10px;
-  }
-  .particle {
-    position: absolute;
-    width: 5px;
-    height: 5px;
-    background-color: #fff;
-    border-radius: 50%;
-    pointer-events: none;
-    animation: particleMove 1s forwards;
-  }
-  @keyframes particleMove {
-    to {
-      transform: translate(var(--dx), var(--dy));
-      opacity: 0;
+    @keyframes popAnimation {
+        from { transform: scale(1); opacity: 0.8; }
+        to { transform: scale(2); opacity: 0; }
     }
-  }
 </style>
 </head>
 <body>
-<div id="game"></div>
-<div id="score">Score: 0</div>
-<div id="timer">Time: 60</div>
 
 <script>
-  let score = 0;
-  let timeLeft = 60;
-  let gameInterval;
-  let timerInterval;
+// Sound effect (Base64-encoded)
+const popSoundSrc = 'data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEAESsAACJWAAACABAAZGF0YQAA...'; // Truncated for brevity
 
-  // Preload sound
-  const clickSound = new Audio('data:audio/wav;base64,UklGRiIAAABXQVZFZm10IBAAAAABAAEAESsAACJWAAACABAAZGF0YSAAAACAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICA=');
+const popSound = new Audio(popSoundSrc);
+let spawnInterval = 2000;
 
-  function playSound() {
-    clickSound.currentTime = 0;
-    clickSound.play();
-  }
+function createBubble() {
+    const bubble = document.createElement('div');
+    const size = Math.random() * 50 + 30;
+    bubble.classList.add('bubble');
+    bubble.style.width = `${size}px`;
+    bubble.style.height = `${size}px`;
+    bubble.style.left = `${Math.random() * (window.innerWidth - size)}px`;
+    bubble.style.top = `${window.innerHeight}px`;
+    document.body.appendChild(bubble);
 
-  function createCircle() {
-    const circle = document.createElement('div');
-    circle.classList.add('circle');
-    circle.style.top = Math.random() * (window.innerHeight - 50) + 'px';
-    circle.style.left = Math.random() * (window.innerWidth - 50) + 'px';
-    document.getElementById('game').appendChild(circle);
-
-    circle.addEventListener('click', function(e) {
-      score++;
-      document.getElementById('score').innerText = 'Score: ' + score;
-      playSound();
-      createParticles(e.clientX, e.clientY);
-      circle.style.animation = 'fadeOut 0.5s forwards';
-      circle.removeEventListener('click', arguments.callee);
-      setTimeout(() => circle.remove(), 500);
+    bubble.addEventListener('click', () => {
+        popSound.currentTime = 0;
+        popSound.play();
+        createPopEffect(bubble.style.left, bubble.style.top, size);
+        bubble.remove();
     });
 
-    setTimeout(() => {
-      if (document.body.contains(circle)) {
-        circle.style.animation = 'fadeOut 0.5s forwards';
-        setTimeout(() => circle.remove(), 500);
-      }
-    }, 2000);
-  }
+    // Remove bubble after it floats up
+    setTimeout(() => { bubble.remove(); }, 5000);
+}
 
-  function createParticles(x, y) {
-    for (let i = 0; i < 20; i++) {
-      const particle = document.createElement('div');
-      particle.classList.add('particle');
-      particle.style.top = y + 'px';
-      particle.style.left = x + 'px';
-      const dx = (Math.random() - 0.5) * 200 + 'px';
-      const dy = (Math.random() - 0.5) * 200 + 'px';
-      particle.style.setProperty('--dx', dx);
-      particle.style.setProperty('--dy', dy);
-      document.body.appendChild(particle);
-      setTimeout(() => particle.remove(), 1000);
+function createPopEffect(x, y, size) {
+    const effect = document.createElement('div');
+    effect.classList.add('pop-effect');
+    effect.style.width = `${size}px`;
+    effect.style.height = `${size}px`;
+    effect.style.left = x;
+    effect.style.top = y;
+    document.body.appendChild(effect);
+
+    setTimeout(() => { effect.remove(); }, 500);
+}
+
+function increaseSpawnSpeed() {
+    if (spawnInterval > 500) {
+        spawnInterval -= 100;
     }
-  }
+}
 
-  function startGame() {
-    gameInterval = setInterval(createCircle, 800);
-    timerInterval = setInterval(() => {
-      timeLeft--;
-      document.getElementById('timer').innerText = 'Time: ' + timeLeft;
-      if (timeLeft <= 0) {
-        clearInterval(gameInterval);
-        clearInterval(timerInterval);
-        alert('Time\'s up! Your score is ' + score);
-      }
-    }, 1000);
-  }
-
-  startGame();
+setInterval(() => {
+    createBubble();
+    increaseSpawnSpeed();
+}, spawnInterval);
 </script>
+
 </body>
 </html>
