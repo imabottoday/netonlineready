@@ -1,154 +1,154 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta http-equiv="X-UA-Compatible" content="IE=edge">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>2D Particle System Game</title>
-    <style>
-        body {
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            height: 100vh;
-            background: linear-gradient(135deg, #2c3e50, #fd746c);
-            margin: 0;
-            overflow: hidden;
-        }
-        canvas {
-            background: rgba(255, 255, 255, 0.1);
-            border: 2px solid #333;
-            box-shadow: 0 0 20px rgba(0, 0, 0, 0.5);
-        }
-        #info {
-            width: 100%;
-            max-width: 800px;
-            text-align: center;
-            background: #fff;
-            padding: 10px;
-            border: 1px solid #ccc;
-            border-radius: 5px;
-            font-family: Arial, sans-serif;
-            font-size: 14px;
-            margin-top: 20px;
-        }
-    </style>
+<meta charset="UTF-8">
+<title>Satisfying Circle Clicker Game</title>
+<style>
+  body {
+    margin: 0;
+    overflow: hidden;
+    background-color: #1a1a1a;
+    position: relative;
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+  }
+  #game {
+    position: relative;
+    width: 100vw;
+    height: 100vh;
+  }
+  .circle {
+    position: absolute;
+    border-radius: 50%;
+    background: radial-gradient(circle at center, #ff7eb9, #ff65a3);
+    width: 50px;
+    height: 50px;
+    opacity: 0;
+    transform: scale(0.5);
+    animation: appear 2s forwards;
+  }
+  @keyframes appear {
+    0% {
+      opacity: 0;
+      transform: scale(0.5);
+    }
+    50% {
+      opacity: 1;
+      transform: scale(1.2);
+    }
+    100% {
+      opacity: 1;
+      transform: scale(1);
+    }
+  }
+  @keyframes fadeOut {
+    to {
+      opacity: 0;
+      transform: scale(0.5);
+    }
+  }
+  #score, #timer {
+    position: fixed;
+    top: 10px;
+    color: #fff;
+    font-size: 24px;
+    user-select: none;
+  }
+  #score {
+    left: 10px;
+  }
+  #timer {
+    right: 10px;
+  }
+  .particle {
+    position: absolute;
+    width: 5px;
+    height: 5px;
+    background-color: #fff;
+    border-radius: 50%;
+    pointer-events: none;
+    animation: particleMove 1s forwards;
+  }
+  @keyframes particleMove {
+    to {
+      transform: translate(var(--dx), var(--dy));
+      opacity: 0;
+    }
+  }
+</style>
 </head>
 <body>
-    <canvas id="gameCanvas"></canvas>
-    <div id="info">
-        <h3>2D Particle System Game</h3>
-        <p>Watch as particles fill the screen and then pop to black in a continuous loop!</p>
-    </div>
+<div id="game"></div>
+<div id="score">Score: 0</div>
+<div id="timer">Time: 60</div>
 
-    <script>
-        const canvas = document.getElementById('gameCanvas');
-        const ctx = canvas.getContext('2d');
-        let particles = [];
-        const gravity = 0.05;
-        const particleRadius = 5;
-        let particlesPopping = false;
-        let popIndex = 0;
+<script>
+  let score = 0;
+  let timeLeft = 60;
+  let gameInterval;
+  let timerInterval;
 
-        // Resize canvas to be responsive
-        function resizeCanvas() {
-            canvas.width = window.innerWidth;
-            canvas.height = window.innerHeight;
-        }
-        window.addEventListener('resize', resizeCanvas);
-        resizeCanvas();  // Initial resize
+  // Preload sound
+  const clickSound = new Audio('data:audio/wav;base64,UklGRiIAAABXQVZFZm10IBAAAAABAAEAESsAACJWAAACABAAZGF0YSAAAACAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICA=');
 
-        class Particle {
-            constructor(x, y, dx, dy) {
-                this.x = x;
-                this.y = y;
-                this.dx = dx;
-                this.dy = dy;
-                this.radius = particleRadius;
-                this.color = `hsl(${Math.random() * 360}, 100%, 50%)`;
-                this.isPopping = false;
-            }
+  function playSound() {
+    clickSound.currentTime = 0;
+    clickSound.play();
+  }
 
-            update() {
-                if (!particlesPopping) {
-                    this.dy += gravity;  // Apply gravity
-                    this.x += this.dx;
-                    this.y += this.dy;
+  function createCircle() {
+    const circle = document.createElement('div');
+    circle.classList.add('circle');
+    circle.style.top = Math.random() * (window.innerHeight - 50) + 'px';
+    circle.style.left = Math.random() * (window.innerWidth - 50) + 'px';
+    document.getElementById('game').appendChild(circle);
 
-                    // Bounce off the walls
-                    if (this.x + this.radius > canvas.width || this.x - this.radius < 0) {
-                        this.dx = -this.dx;
-                    }
-                    if (this.y + this.radius > canvas.height || this.y - this.radius < 0) {
-                        this.dy = -this.dy * 0.8; // Apply a little damping when hitting the bottom
-                    }
-                }
-            }
+    circle.addEventListener('click', function(e) {
+      score++;
+      document.getElementById('score').innerText = 'Score: ' + score;
+      playSound();
+      createParticles(e.clientX, e.clientY);
+      circle.style.animation = 'fadeOut 0.5s forwards';
+      circle.removeEventListener('click', arguments.callee);
+      setTimeout(() => circle.remove(), 500);
+    });
 
-            draw() {
-                ctx.beginPath();
-                ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
-                ctx.fillStyle = this.color;
-                ctx.fill();
-                ctx.closePath();
-            }
+    setTimeout(() => {
+      if (document.body.contains(circle)) {
+        circle.style.animation = 'fadeOut 0.5s forwards';
+        setTimeout(() => circle.remove(), 500);
+      }
+    }, 2000);
+  }
 
-            pop() {
-                this.color = 'black';  // Change color to black
-                this.isPopping = true;
-            }
-        }
+  function createParticles(x, y) {
+    for (let i = 0; i < 20; i++) {
+      const particle = document.createElement('div');
+      particle.classList.add('particle');
+      particle.style.top = y + 'px';
+      particle.style.left = x + 'px';
+      const dx = (Math.random() - 0.5) * 200 + 'px';
+      const dy = (Math.random() - 0.5) * 200 + 'px';
+      particle.style.setProperty('--dx', dx);
+      particle.style.setProperty('--dy', dy);
+      document.body.appendChild(particle);
+      setTimeout(() => particle.remove(), 1000);
+    }
+  }
 
-        function createParticles() {
-            // Create a dense burst of particles at random locations
-            for (let i = 0; i < 50; i++) {
-                const x = Math.random() * canvas.width;
-                const y = Math.random() * canvas.height;
-                const dx = (Math.random() - 0.5) * 1;  // Slower initial speed for more stable fill
-                const dy = (Math.random() - 0.5) * 1;  // Slower initial speed for more stable fill
-                particles.push(new Particle(x, y, dx, dy));
-            }
-        }
+  function startGame() {
+    gameInterval = setInterval(createCircle, 800);
+    timerInterval = setInterval(() => {
+      timeLeft--;
+      document.getElementById('timer').innerText = 'Time: ' + timeLeft;
+      if (timeLeft <= 0) {
+        clearInterval(gameInterval);
+        clearInterval(timerInterval);
+        alert('Time\'s up! Your score is ' + score);
+      }
+    }, 1000);
+  }
 
-        function animate() {
-            ctx.clearRect(0, 0, canvas.width, canvas.height);
-            particles.forEach((particle) => {
-                particle.update();
-                particle.draw();
-            });
-
-            // Fill the screen with particles
-            if (!particlesPopping && particles.length < (canvas.width * canvas.height) / (particleRadius * particleRadius * 0.5)) {
-                createParticles();  // Increase particle density for complete fill
-            }
-
-            // Start popping when particles fill the screen densely
-            if (!particlesPopping && particles.length >= (canvas.width * canvas.height) / (particleRadius * particleRadius * 0.5)) {
-                particlesPopping = true;  // Start popping when the screen is full
-                popIndex = 0;
-            }
-
-            // Pop particles one by one faster
-            if (particlesPopping && popIndex < particles.length) {
-                for (let i = 0; i < 5; i++) {  // Pop multiple particles at once for faster effect
-                    if (popIndex < particles.length) {
-                        particles[popIndex].pop();
-                        popIndex++;
-                    }
-                }
-            }
-
-            // Reset the game once all particles have popped
-            if (particlesPopping && popIndex >= particles.length) {
-                particlesPopping = false;
-                particles = [];  // Clear all particles to restart the cycle
-            }
-
-            requestAnimationFrame(animate);
-        }
-
-        animate();
-    </script>
+  startGame();
+</script>
 </body>
 </html>
