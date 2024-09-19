@@ -4,14 +4,13 @@
 <meta charset="UTF-8">
 <title>Concentric Merge</title>
 <style>
-  /* Updated styling for the circles and game layout */
+  /* Responsive styling for the game layout */
   body {
     margin: 0;
     background-color: #20232a;
-    overflow: hidden;
     font-family: Arial, sans-serif;
     color: #61dafb;
-    text-align: center;
+    overflow: hidden;
   }
   #game-container {
     position: relative;
@@ -19,6 +18,7 @@
     height: 100vmin;
     margin: 0 auto;
     overflow: hidden;
+    touch-action: none; /* Prevent default touch behaviors */
   }
   .circle {
     position: absolute;
@@ -26,43 +26,45 @@
     left: 50%;
     transform-origin: center center;
     border-radius: 50%;
-    border: 2px solid #61dafb;
+    border: 0.5vmin solid #61dafb;
     box-sizing: border-box;
     cursor: pointer;
     transition: transform 0.5s;
   }
   .circle:hover {
-    box-shadow: 0 0 10px #61dafb;
+    box-shadow: 0 0 1vmin #61dafb;
   }
   .number {
     position: absolute;
     transform: translate(-50%, -50%);
     color: #fff;
-    font-size: 1.5vmin;
+    font-size: 2vmin;
     user-select: none;
   }
   #scoreboard {
     position: absolute;
-    top: 10px;
+    top: 2vmin;
     left: 50%;
     transform: translateX(-50%);
     font-size: 2vmin;
+    z-index: 10;
   }
   #scoreboard div {
-    margin: 5px 0;
+    margin: 1vmin 0;
   }
   #restart-btn {
     position: absolute;
-    bottom: 20px;
+    bottom: 2vmin;
     left: 50%;
     transform: translateX(-50%);
-    padding: 10px 20px;
+    padding: 1vmin 2vmin;
     background-color: #61dafb;
     border: none;
     color: #20232a;
     font-size: 2vmin;
     cursor: pointer;
-    border-radius: 5px;
+    border-radius: 1vmin;
+    z-index: 10;
   }
   #restart-btn:hover {
     background-color: #52a1c3;
@@ -75,6 +77,7 @@
     font-size: 5vmin;
     color: #61dafb;
     display: none;
+    z-index: 10;
   }
   @keyframes pulse {
     0% { transform: translate(-50%, -50%) scale(1); opacity: 1; }
@@ -108,6 +111,8 @@
   let score = 0;
   let circles = [];
   let gameOver = false;
+  let touchStartX = 0;
+  let touchStartY = 0;
 
   const gameContainer = document.getElementById('game-container');
   const scoreDisplay = document.getElementById('score');
@@ -141,19 +146,22 @@
 
   // Create Circles
   function createCircles() {
-    const sizes = [30, 45, 60, 75]; // Percentages for responsive design
+    const sizes = [60, 75, 90, 105]; // Adjusted sizes for better spacing
     for (let i = 0; i < NUM_CIRCLES; i++) {
       const circle = document.createElement('div');
       circle.classList.add('circle');
-      circle.style.width = sizes[i] + '%';
-      circle.style.height = sizes[i] + '%';
-      circle.style.marginLeft = -(sizes[i]/2) + '%';
-      circle.style.marginTop = -(sizes[i]/2) + '%';
+      circle.style.width = sizes[i] + 'vmin';
+      circle.style.height = sizes[i] + 'vmin';
+      circle.style.marginLeft = -(sizes[i]/2) + 'vmin';
+      circle.style.marginTop = -(sizes[i]/2) + 'vmin';
       circle.dataset.rotation = 0;
       circle.dataset.index = i;
       circle.numbers = generateNumbers(i);
       drawNumbers(circle);
+      // Add both mouse and touch event listeners
       circle.addEventListener('click', rotateCircle);
+      circle.addEventListener('touchstart', handleTouchStart, { passive: false });
+      circle.addEventListener('touchend', handleTouchEnd, { passive: false });
       gameContainer.appendChild(circle);
       circles.push(circle);
     }
@@ -174,7 +182,7 @@
     circle.innerHTML = '';
     const circleRect = circle.getBoundingClientRect();
     const radius = circleRect.width / 2;
-    const adjustedRadius = radius - 20; // Adjust to position numbers inside the circle border
+    const adjustedRadius = radius - 5; // Adjust to position numbers inside the circle border
     for (let i = 0; i < NUM_SECTIONS; i++) {
       const angleDeg = (360 / NUM_SECTIONS) * i + parseFloat(circle.dataset.rotation);
       const angleRad = angleDeg * Math.PI / 180;
@@ -203,11 +211,31 @@
     checkForMerges();
   }
 
+  // Touch Event Handlers
+  function handleTouchStart(event) {
+    event.preventDefault();
+    touchStartX = event.touches[0].clientX;
+    touchStartY = event.touches[0].clientY;
+  }
+
+  function handleTouchEnd(event) {
+    event.preventDefault();
+    const touchEndX = event.changedTouches[0].clientX;
+    const touchEndY = event.changedTouches[0].clientY;
+    const deltaX = touchEndX - touchStartX;
+    const deltaY = touchEndY - touchStartY;
+    const distance = Math.sqrt(deltaX * deltaX + deltaY * deltaY);
+
+    if (distance < 10) {
+      // Treat as a tap
+      rotateCircle(event);
+    }
+  }
+
   // Check for Merges
   function checkForMerges() {
     let merged = false;
     for (let i = 0; i < NUM_SECTIONS; i++) {
-      let numbersToMerge = [];
       for (let j = NUM_CIRCLES - 1; j > 0; j--) {
         const circleOuter = circles[j];
         const circleInner = circles[j - 1];
@@ -228,8 +256,8 @@
           mergeEffect.style.left = '50%';
           mergeEffect.style.top = '50%';
           mergeEffect.style.transform = 'translate(-50%, -50%)';
-          mergeEffect.style.width = '100px';
-          mergeEffect.style.height = '100px';
+          mergeEffect.style.width = '20vmin';
+          mergeEffect.style.height = '20vmin';
           mergeEffect.style.borderRadius = '50%';
           mergeEffect.style.backgroundColor = 'rgba(255, 255, 255, 0.2)';
           mergeEffect.style.animation = 'pulse 1s';
