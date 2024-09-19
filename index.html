@@ -92,7 +92,7 @@
 
 <script>
   // Game Constants
-  const NUM_CIRCLES = 2; // Start with two circles for debugging
+  const NUM_CIRCLES = 2; // Start with two circles
   const NUM_SECTIONS = 6;
   const TARGET_SCORE = 500;
   
@@ -149,13 +149,13 @@
   // Handle Window Resize
   window.addEventListener('resize', resizeCanvas);
   
-  // Create Circles with Initial Numbers
+  // Create Circles with Ordered Numbers
   function createCircles() {
     for (let i = 0; i < NUM_CIRCLES; i++) {
       const circle = {
         radius: radiusUnit * (i + 1),
         rotation: 0,
-        numbers: generateNumbers(i),
+        numbers: generateOrderedNumbers(i),
       };
       circles.push(circle);
       logDebug(`Circle ${i} created with radius ${circle.radius}`);
@@ -163,15 +163,15 @@
     }
   }
   
-  // Generate Numbers for Each Circle
-  function generateNumbers(circleIndex) {
+  // Generate Ordered Numbers for Each Circle
+  function generateOrderedNumbers(circleIndex) {
     const baseNumber = Math.pow(2, circleIndex + 1);
     let numbers = [];
     for (let i = 0; i < NUM_SECTIONS; i++) {
-      numbers.push(baseNumber);
+      numbers.push(baseNumber + (i % 2 === 0 ? 0 : 2)); // Alternate between base and base+2
     }
-    logDebug(`Numbers Generated for Circle ${circleIndex}: ${numbers.join(', ')}`);
-    console.log(`Numbers Generated for Circle ${circleIndex}:`, numbers);
+    logDebug(`Ordered Numbers Generated for Circle ${circleIndex}: ${numbers.join(', ')}`);
+    console.log(`Ordered Numbers Generated for Circle ${circleIndex}:`, numbers);
     return numbers;
   }
   
@@ -258,14 +258,14 @@
     drawGame();
     checkForMerges();  // Check for merges after each rotation
   }
-
+  
   // Touch Event Handling
   canvas.addEventListener('touchstart', (event) => {
     event.preventDefault();
     logDebug('Touch Start');
     console.log('Touch Start');
   }, { passive: false });
-
+  
   canvas.addEventListener('touchend', (event) => {
     event.preventDefault();
     const rect = canvas.getBoundingClientRect();
@@ -277,7 +277,7 @@
       rotateCircle(circle);
     }
   }, { passive: false });
-
+  
   // Mouse Event Handling for Desktop Testing
   canvas.addEventListener('click', (event) => {
     const rect = canvas.getBoundingClientRect();
@@ -288,7 +288,7 @@
       rotateCircle(circle);
     }
   });
-
+  
   // Function to Check for Merges After Rotation
   function checkForMerges() {
     let merged = false;
@@ -328,7 +328,7 @@
       messageDisplay.style.display = 'block';
     }
   }
-
+  
   // Function to Check if Any Moves Are Possible
   function hasPossibleMoves() {
     for (let i = 0; i < NUM_SECTIONS; i++) {
@@ -347,17 +347,17 @@
     }
     return false;
   }
-
+  
   // Restart Button Handling
   restartBtn.addEventListener('click', () => {
     initGame();
   });
-
+  
   // Initialize the Game on Page Load
   window.addEventListener('load', () => {
     initGame();
   });
-
+  
   // Debug Logging with Throttling to Prevent Flooding
   let lastLogTime = 0;
   const logInterval = 100; // in milliseconds
@@ -373,4 +373,4 @@
 </script>
 
 </body>
-</html>               
+</html>
