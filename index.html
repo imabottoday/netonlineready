@@ -5,95 +5,62 @@
 <title>Concentric Merge</title>
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <style>
-  /* Responsive styling for the game layout */
   body {
     margin: 0;
     background-color: #20232a;
+    overflow: hidden;
     font-family: Arial, sans-serif;
     color: #61dafb;
-    overflow: hidden;
   }
   #game-container {
     position: relative;
-    width: 100%;
+    width: 100vw;
     height: 100vh;
     overflow: hidden;
-    touch-action: none; /* Prevent default touch behaviors */
   }
-  .circle {
-    position: absolute;
-    top: 50%;
-    left: 50%;
-    transform-origin: center center;
-    border-radius: 50%;
-    border: 0.5rem solid #61dafb;
-    box-sizing: border-box;
-    cursor: pointer;
-    transition: transform 0.5s;
-  }
-  .circle:hover {
-    box-shadow: 0 0 1rem #61dafb;
-  }
-  .number {
-    position: absolute;
-    transform: translate(-50%, -50%);
-    color: #fff;
-    font-size: 1.5rem;
-    user-select: none;
+  #game-canvas {
+    display: block;
+    width: 100%;
+    height: 100%;
   }
   #scoreboard {
     position: absolute;
-    top: 1rem;
+    top: 10px;
     left: 50%;
     transform: translateX(-50%);
-    font-size: 1.5rem;
+    font-size: 2em;
     z-index: 10;
-  }
-  #scoreboard div {
-    margin: 1rem 0;
   }
   #restart-btn {
     position: absolute;
-    bottom: 1rem;
+    bottom: 20px;
     left: 50%;
     transform: translateX(-50%);
-    padding: 0.5rem 1rem;
+    padding: 10px 20px;
+    font-size: 1.5em;
     background-color: #61dafb;
-    border: none;
     color: #20232a;
-    font-size: 1.5rem;
+    border: none;
     cursor: pointer;
-    border-radius: 0.5rem;
+    border-radius: 5px;
     z-index: 10;
-  }
-  #restart-btn:hover {
-    background-color: #52a1c3;
   }
   #message {
     position: absolute;
     top: 50%;
     left: 50%;
     transform: translate(-50%, -50%);
-    font-size: 4rem;
+    font-size: 4em;
     color: #61dafb;
     display: none;
     z-index: 10;
-  }
-  @keyframes pulse {
-    0% {
-      transform: translate(-50%, -50%) scale(1);
-      opacity: 1;
-    }
-    100% {
-      transform: translate(-50%, -50%) scale(2);
-      opacity: 0;
-    }
   }
 </style>
 </head>
 <body>
 
 <div id="game-container">
+  <canvas id="game-canvas"></canvas>
   <div id="scoreboard">
     <div>Score: <span id="score">0</span></div>
     <div>Target Score: <span id="target-score">500</span></div>
@@ -102,8 +69,7 @@
   <div id="message"></div>
 </div>
 
-<!-- Sound Assets -->
-<!-- Replace the 'src' attributes with your base64-encoded audio data -->
+<!-- Sound Assets (Replace '...' with your base64-encoded audio data) -->
 <audio id="rotate-sound" src="data:audio/wav;base64,..."></audio>
 <audio id="merge-sound" src="data:audio/wav;base64,..."></audio>
 <audio id="victory-sound" src="data:audio/wav;base64,..."></audio>
@@ -111,23 +77,19 @@
 <audio id="background-music" loop src="data:audio/wav;base64,..."></audio>
 
 <script>
-  // Game Variables
   const NUM_CIRCLES = 4;
   const NUM_SECTIONS = 6;
   const TARGET_SCORE = 500;
   let score = 0;
-  let circles = [];
   let gameOver = false;
-  let touchStartX = 0;
-  let touchStartY = 0;
 
-  const gameContainer = document.getElementById('game-container');
+  const canvas = document.getElementById('game-canvas');
+  const ctx = canvas.getContext('2d');
   const scoreDisplay = document.getElementById('score');
   const targetScoreDisplay = document.getElementById('target-score');
   const messageDisplay = document.getElementById('message');
   const restartBtn = document.getElementById('restart-btn');
 
-  // Sound Elements
   const rotateSound = document.getElementById('rotate-sound');
   const mergeSound = document.getElementById('merge-sound');
   const victorySound = document.getElementById('victory-sound');
@@ -136,45 +98,48 @@
 
   targetScoreDisplay.textContent = TARGET_SCORE;
 
-  // Start Background Music
   backgroundMusic.volume = 0.3;
   backgroundMusic.play();
 
-  // Initialize Game
+  let circles = [];
+  let canvasWidth, canvasHeight, centerX, centerY, radiusUnit;
+
   function initGame() {
     score = 0;
     gameOver = false;
     scoreDisplay.textContent = score;
     messageDisplay.style.display = 'none';
-    gameContainer.querySelectorAll('.circle').forEach(c => c.remove());
     circles = [];
+    resizeCanvas();
     createCircles();
+    drawGame();
   }
 
-  // Create Circles
+  function resizeCanvas() {
+    canvasWidth = canvas.offsetWidth;
+    canvasHeight = canvas.offsetHeight;
+    canvas.width = canvasWidth;
+    canvas.height = canvasHeight;
+    centerX = canvasWidth / 2;
+    centerY = canvasHeight / 2;
+    radiusUnit = Math.min(canvasWidth, canvasHeight) / (NUM_CIRCLES + 2);
+  }
+
+  window.addEventListener('resize', () => {
+    resizeCanvas();
+    drawGame();
+  });
+
   function createCircles() {
-    const sizes = [40, 55, 70, 85]; // Percentages for responsive design
     for (let i = 0; i < NUM_CIRCLES; i++) {
-      const circle = document.createElement('div');
-      circle.classList.add('circle');
-      circle.style.width = sizes[i] + '%';
-      circle.style.height = sizes[i] + '%';
-      circle.style.marginLeft = -(sizes[i]/2) + '%';
-      circle.style.marginTop = -(sizes[i]/2) + '%';
-      circle.dataset.rotation = 0;
-      circle.dataset.index = i;
-      circle.numbers = generateNumbers(i);
-      drawNumbers(circle);
-      // Add both mouse and touch event listeners
-      circle.addEventListener('click', rotateCircle);
-      circle.addEventListener('touchstart', handleTouchStart, { passive: false });
-      circle.addEventListener('touchend', handleTouchEnd, { passive: false });
-      gameContainer.appendChild(circle);
-      circles.push(circle);
+      circles.push({
+        radius: radiusUnit * (i + 1),
+        rotation: 0,
+        numbers: generateNumbers(i),
+      });
     }
   }
 
-  // Generate Numbers for Each Section
   function generateNumbers(circleIndex) {
     const baseNumber = (circleIndex + 1) * 2;
     let numbers = [];
@@ -184,70 +149,95 @@
     return numbers;
   }
 
-  // Draw Numbers on Circle
-  function drawNumbers(circle) {
-    circle.innerHTML = '';
-    const circleRect = circle.getBoundingClientRect();
-    const radius = circleRect.width / 2;
-    const adjustedRadius = radius - 20; // Adjust to position numbers inside the circle border
-    for (let i = 0; i < NUM_SECTIONS; i++) {
-      const angleDeg = (360 / NUM_SECTIONS) * i + parseFloat(circle.dataset.rotation);
-      const angleRad = angleDeg * Math.PI / 180;
-      const x = (radius + adjustedRadius * Math.cos(angleRad));
-      const y = (radius + adjustedRadius * Math.sin(angleRad));
-      const numberDiv = document.createElement('div');
-      numberDiv.classList.add('number');
-      numberDiv.style.left = x + 'px';
-      numberDiv.style.top = y + 'px';
-      numberDiv.textContent = circle.numbers[i];
-      circle.appendChild(numberDiv);
+  function drawGame() {
+    ctx.clearRect(0, 0, canvasWidth, canvasHeight);
+    for (let i = NUM_CIRCLES - 1; i >= 0; i--) {
+      drawCircle(circles[i]);
     }
   }
 
-  // Rotate Circle
-  function rotateCircle(event) {
+  function drawCircle(circle) {
+    // Draw Circle
+    ctx.beginPath();
+    ctx.arc(centerX, centerY, circle.radius, 0, 2 * Math.PI);
+    ctx.strokeStyle = '#61dafb';
+    ctx.lineWidth = radiusUnit * 0.05;
+    ctx.stroke();
+
+    // Draw Numbers
+    for (let i = 0; i < NUM_SECTIONS; i++) {
+      const angle = (2 * Math.PI / NUM_SECTIONS) * i + circle.rotation;
+      const x = centerX + (circle.radius - radiusUnit * 0.3) * Math.cos(angle);
+      const y = centerY + (circle.radius - radiusUnit * 0.3) * Math.sin(angle);
+      ctx.fillStyle = '#fff';
+      ctx.font = `${radiusUnit * 0.5}px Arial`;
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText(circle.numbers[i], x, y);
+    }
+  }
+
+  function getCircleAtPosition(x, y) {
+    const dx = x - centerX;
+    const dy = y - centerY;
+    const distance = Math.sqrt(dx * dx + dy * dy);
+    for (let i = NUM_CIRCLES - 1; i >= 0; i--) {
+      if (distance <= circles[i].radius + radiusUnit * 0.3 && distance >= circles[i].radius - radiusUnit * 0.3) {
+        return circles[i];
+      }
+    }
+    return null;
+  }
+
+  function rotateCircle(circle) {
     if (gameOver) return;
-    const circle = event.currentTarget;
-    let rotation = parseFloat(circle.dataset.rotation);
-    rotation = (rotation + (360 / NUM_SECTIONS)) % 360;
-    circle.dataset.rotation = rotation;
-    circle.style.transform = `translate(-50%, -50%) rotate(${rotation}deg)`;
-    drawNumbers(circle);
+    circle.rotation = (circle.rotation + (2 * Math.PI / NUM_SECTIONS)) % (2 * Math.PI);
+    drawGame();
     rotateSound.currentTime = 0;
     rotateSound.play();
     checkForMerges();
   }
 
-  // Touch Event Handlers
-  function handleTouchStart(event) {
-    event.preventDefault();
-    touchStartX = event.touches[0].clientX;
-    touchStartY = event.touches[0].clientY;
-  }
-
-  function handleTouchEnd(event) {
-    event.preventDefault();
-    const touchEndX = event.changedTouches[0].clientX;
-    const touchEndY = event.changedTouches[0].clientY;
-    const deltaX = touchEndX - touchStartX;
-    const deltaY = touchEndY - touchStartY;
-    const distance = Math.sqrt(deltaX * deltaX + deltaY * deltaY);
-
-    if (distance < 10) {
-      // Treat as a tap
-      rotateCircle(event);
+  canvas.addEventListener('click', (event) => {
+    const rect = canvas.getBoundingClientRect();
+    const x = (event.clientX - rect.left);
+    const y = (event.clientY - rect.top);
+    const circle = getCircleAtPosition(x, y);
+    if (circle) {
+      rotateCircle(circle);
     }
-  }
+  });
 
-  // Check for Merges
+  // Touch handling
+  let touchStartTime = 0;
+  canvas.addEventListener('touchstart', (event) => {
+    event.preventDefault();
+    touchStartTime = Date.now();
+  }, { passive: false });
+
+  canvas.addEventListener('touchend', (event) => {
+    event.preventDefault();
+    const touchDuration = Date.now() - touchStartTime;
+    if (touchDuration < 500) { // Considered as tap
+      const rect = canvas.getBoundingClientRect();
+      const touch = event.changedTouches[0];
+      const x = (touch.clientX - rect.left);
+      const y = (touch.clientY - rect.top);
+      const circle = getCircleAtPosition(x, y);
+      if (circle) {
+        rotateCircle(circle);
+      }
+    }
+  }, { passive: false });
+
   function checkForMerges() {
     let merged = false;
     for (let i = 0; i < NUM_SECTIONS; i++) {
       for (let j = NUM_CIRCLES - 1; j > 0; j--) {
         const circleOuter = circles[j];
         const circleInner = circles[j - 1];
-        const indexOuter = (i - Math.round(circleOuter.dataset.rotation / (360 / NUM_SECTIONS)) + NUM_SECTIONS) % NUM_SECTIONS;
-        const indexInner = (i - Math.round(circleInner.dataset.rotation / (360 / NUM_SECTIONS)) + NUM_SECTIONS) % NUM_SECTIONS;
+        const indexOuter = (i - Math.round(circleOuter.rotation / (2 * Math.PI / NUM_SECTIONS)) + NUM_SECTIONS) % NUM_SECTIONS;
+        const indexInner = (i - Math.round(circleInner.rotation / (2 * Math.PI / NUM_SECTIONS)) + NUM_SECTIONS) % NUM_SECTIONS;
         const numberOuter = circleOuter.numbers[indexOuter];
         const numberInner = circleInner.numbers[indexInner];
         if (numberOuter > 0 && numberOuter === numberInner) {
@@ -257,26 +247,13 @@
           circleOuter.numbers[indexOuter] = 0;
           score += sum;
           scoreDisplay.textContent = score;
-          // Merge Effect
-          const mergeEffect = document.createElement('div');
-          mergeEffect.style.position = 'absolute';
-          mergeEffect.style.left = '50%';
-          mergeEffect.style.top = '50%';
-          mergeEffect.style.transform = 'translate(-50%, -50%)';
-          mergeEffect.style.width = '20vmin';
-          mergeEffect.style.height = '20vmin';
-          mergeEffect.style.borderRadius = '50%';
-          mergeEffect.style.backgroundColor = 'rgba(255, 255, 255, 0.2)';
-          mergeEffect.style.animation = 'pulse 1s';
-          gameContainer.appendChild(mergeEffect);
-          setTimeout(() => mergeEffect.remove(), 1000);
           mergeSound.currentTime = 0;
           mergeSound.play();
         }
       }
     }
     if (merged) {
-      circles.forEach(circle => drawNumbers(circle));
+      drawGame();
       if (score >= TARGET_SCORE) {
         gameOver = true;
         messageDisplay.textContent = 'Victory!';
@@ -284,7 +261,6 @@
         victorySound.play();
       }
     } else {
-      // Check for Game Over
       if (!hasPossibleMoves()) {
         gameOver = true;
         messageDisplay.textContent = 'Try Again!';
@@ -294,14 +270,13 @@
     }
   }
 
-  // Check for Possible Moves
   function hasPossibleMoves() {
     for (let i = 0; i < NUM_SECTIONS; i++) {
       for (let j = NUM_CIRCLES - 1; j > 0; j--) {
         const circleOuter = circles[j];
         const circleInner = circles[j - 1];
-        const indexOuter = (i - Math.round(circleOuter.dataset.rotation / (360 / NUM_SECTIONS)) + NUM_SECTIONS) % NUM_SECTIONS;
-        const indexInner = (i - Math.round(circleInner.dataset.rotation / (360 / NUM_SECTIONS)) + NUM_SECTIONS) % NUM_SECTIONS;
+        const indexOuter = (i - Math.round(circleOuter.rotation / (2 * Math.PI / NUM_SECTIONS)) + NUM_SECTIONS) % NUM_SECTIONS;
+        const indexInner = (i - Math.round(circleInner.rotation / (2 * Math.PI / NUM_SECTIONS)) + NUM_SECTIONS) % NUM_SECTIONS;
         const numberOuter = circleOuter.numbers[indexOuter];
         const numberInner = circleInner.numbers[indexInner];
         if (numberOuter > 0 && numberOuter === numberInner) {
@@ -312,12 +287,10 @@
     return false;
   }
 
-  // Restart Game
   restartBtn.addEventListener('click', () => {
     initGame();
   });
 
-  // Initialize the game on page load
   initGame();
 </script>
 
