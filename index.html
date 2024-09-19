@@ -67,12 +67,12 @@
     right: 10px;
     color: #fff;
     z-index: 10;
-    font-size: 1em;
+    font-size: 0.75em; /* Reduced font size for smaller debug window */
     background-color: rgba(0,0,0,0.5);
     padding: 5px 10px;
     border-radius: 5px;
     white-space: pre-line;
-    max-height: 90vh;
+    max-height: 50vh; /* Reduced height for the debug window */
     overflow-y: auto;
   }
 </style>
@@ -92,8 +92,8 @@
 
 <script>
   // Game Constants
-  const NUM_CIRCLES = 2; // Start with two circles
-  const NUM_SECTIONS = 6;
+  const NUM_CIRCLES = 4; // Now with four circles
+  const NUM_SECTIONS = 12; // Increased number of sections for more complexity
   const TARGET_SCORE = 500;
   
   // Game Variables
@@ -212,7 +212,7 @@
       ctx.translate(x, y);
       ctx.rotate(-circle.rotation - angle);
       ctx.fillStyle = '#fff';
-      ctx.font = `${radiusUnit * 0.5}px Arial`;
+      ctx.font = `${radiusUnit * 0.4}px Arial`; // Slightly smaller font size to fit more numbers
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
       const number = circle.numbers[i];
@@ -240,7 +240,7 @@
         return circles[i];
       }
     }
-  logDebug('No Circle Selected');
+    logDebug('No Circle Selected');
     console.log('No Circle Selected');
     return null;
   }
@@ -395,3 +395,7 @@
 
 </body>
 </html>
+
+
+
+        
