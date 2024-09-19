@@ -74,13 +74,6 @@
   <div id="message"></div>
 </div>
 
-<!-- Sound Assets (Replace '...' with your base64-encoded audio data) -->
-<audio id="rotate-sound" src="data:audio/wav;base64,..."></audio>
-<audio id="merge-sound" src="data:audio/wav;base64,..."></audio>
-<audio id="victory-sound" src="data:audio/wav;base64,..."></audio>
-<audio id="failure-sound" src="data:audio/wav;base64,..."></audio>
-<audio id="background-music" loop src="data:audio/wav;base64,..."></audio>
-
 <script>
   const NUM_CIRCLES = 4;
   const NUM_SECTIONS = 6;
@@ -95,16 +88,7 @@
   const messageDisplay = document.getElementById('message');
   const restartBtn = document.getElementById('restart-btn');
 
-  const rotateSound = document.getElementById('rotate-sound');
-  const mergeSound = document.getElementById('merge-sound');
-  const victorySound = document.getElementById('victory-sound');
-  const failureSound = document.getElementById('failure-sound');
-  const backgroundMusic = document.getElementById('background-music');
-
   targetScoreDisplay.textContent = TARGET_SCORE;
-
-  backgroundMusic.volume = 0.3;
-  backgroundMusic.play();
 
   let circles = [];
   let canvasWidth, canvasHeight, centerX, centerY, radiusUnit;
@@ -139,7 +123,6 @@
         radius: radiusUnit * (i + 1),
         rotation: 0,
         numbers: generateNumbers(i),
-        color: `hsl(${(i * 60) % 360}, 70%, 50%)`,
       });
     }
   }
@@ -164,10 +147,11 @@
     ctx.save();
     ctx.translate(centerX, centerY);
     ctx.rotate(circle.rotation);
+
     // Draw Circle
     ctx.beginPath();
     ctx.arc(0, 0, circle.radius, 0, 2 * Math.PI);
-    ctx.strokeStyle = circle.color;
+    ctx.strokeStyle = '#61dafb'; // Single color for simplicity
     ctx.lineWidth = radiusUnit * 0.05;
     ctx.stroke();
 
@@ -208,9 +192,8 @@
     if (gameOver) return;
     circle.rotation = (circle.rotation + (2 * Math.PI / NUM_SECTIONS)) % (2 * Math.PI);
     drawGame();
-    rotateSound.currentTime = 0;
-    rotateSound.play();
-    checkForMerges();
+    // Commented out merging logic for now
+    // checkForMerges();
   }
 
   // Touch handling
@@ -241,91 +224,10 @@
     }
   });
 
-  function checkForMerges() {
-    let merged = false;
-    for (let i = 0; i < NUM_SECTIONS; i++) {
-      for (let j = NUM_CIRCLES - 1; j > 0; j--) {
-        const circleOuter = circles[j];
-        const circleInner = circles[j - 1];
-        const indexOuter = (i - Math.round(circleOuter.rotation / (2 * Math.PI / NUM_SECTIONS)) + NUM_SECTIONS) % NUM_SECTIONS;
-        const indexInner = (i - Math.round(circleInner.rotation / (2 * Math.PI / NUM_SECTIONS)) + NUM_SECTIONS) % NUM_SECTIONS;
-        const numberOuter = circleOuter.numbers[indexOuter];
-        const numberInner = circleInner.numbers[indexInner];
-        if (numberOuter > 0 && numberOuter === numberInner) {
-          merged = true;
-          const sum = numberOuter + numberInner;
-          circleInner.numbers[indexInner] = sum;
-          circleOuter.numbers[indexOuter] = 0;
-          score += sum;
-          scoreDisplay.textContent = score;
-          mergeSound.currentTime = 0;
-          mergeSound.play();
-          animateMerge(circleInner, indexInner);
-        }
-      }
-    }
-    if (merged) {
-      setTimeout(() => {
-        drawGame();
-        if (score >= TARGET_SCORE) {
-          gameOver = true;
-          messageDisplay.textContent = 'Victory!';
-          messageDisplay.style.display = 'block';
-          victorySound.play();
-        }
-      }, 300);
-    } else {
-      if (!hasPossibleMoves()) {
-        gameOver = true;
-        messageDisplay.textContent = 'Try Again!';
-        messageDisplay.style.display = 'block';
-        failureSound.play();
-      }
-    }
-  }
-
-  function animateMerge(circle, index) {
-    const angle = (2 * Math.PI / NUM_SECTIONS) * index;
-    const x = centerX + (circle.radius - radiusUnit * 0.3) * Math.cos(angle + circle.rotation);
-    const y = centerY + (circle.radius - radiusUnit * 0.3) * Math.sin(angle + circle.rotation);
-    const startTime = Date.now();
-    const duration = 300;
-
-    function animation() {
-      const elapsed = Date.now() - startTime;
-      const progress = Math.min(elapsed / duration, 1);
-      ctx.save();
-      ctx.translate(x, y);
-      ctx.scale(1 + progress, 1 + progress);
-      ctx.fillStyle = '#fff';
-      ctx.font = `${radiusUnit * 0.5}px Arial`;
-      ctx.textAlign = 'center';
-      ctx.textBaseline = 'middle';
-      ctx.fillText(circle.numbers[index], 0, 0);
-      ctx.restore();
-      if (progress < 1) {
-        requestAnimationFrame(animation);
-      }
-    }
-    requestAnimationFrame(animation);
-  }
-
-  function hasPossibleMoves() {
-    for (let i = 0; i < NUM_SECTIONS; i++) {
-      for (let j = NUM_CIRCLES - 1; j > 0; j--) {
-        const circleOuter = circles[j];
-        const circleInner = circles[j - 1];
-        const indexOuter = (i - Math.round(circleOuter.rotation / (2 * Math.PI / NUM_SECTIONS)) + NUM_SECTIONS) % NUM_SECTIONS;
-        const indexInner = (i - Math.round(circleInner.rotation / (2 * Math.PI / NUM_SECTIONS)) + NUM_SECTIONS) % NUM_SECTIONS;
-        const numberOuter = circleOuter.numbers[indexOuter];
-        const numberInner = circleInner.numbers[indexInner];
-        if (numberOuter > 0 && numberOuter === numberInner) {
-          return true;
-        }
-      }
-    }
-    return false;
-  }
+  // Commented out merging logic for now
+  // function checkForMerges() {
+  //   // Merging logic here
+  // }
 
   restartBtn.addEventListener('click', () => {
     initGame();
@@ -338,3 +240,4 @@
 
 </body>
 </html>
+
