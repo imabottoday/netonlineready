@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<title>Concentric Merge Game - Debug Mode</title>
+<title>Concentric Merge Game - Enhanced</title>
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <style>
   /* Base styling */
@@ -92,8 +92,8 @@
 
 <script>
   // Game Constants
-  const NUM_CIRCLES = 4; // Now with four circles
-  const NUM_SECTIONS = 12; // Increased number of sections for more complexity
+  const NUM_CIRCLES = 4;
+  const NUM_SECTIONS = 12;
   const TARGET_SCORE = 500;
   
   // Game Variables
@@ -114,6 +114,7 @@
   
   // Circle Data Structure
   let circles = [];
+  const colors = ['#FF5733', '#33FF57', '#3357FF', '#F333FF']; // Colors for each circle
   
   // Canvas Dimensions and Calculations
   let canvasWidth, canvasHeight, centerX, centerY, radiusUnit;
@@ -156,6 +157,7 @@
         radius: radiusUnit * (i + 1),
         rotation: 0,
         numbers: generateOrderedNumbers(i),
+        color: colors[i]
       };
       circles.push(circle);
       logDebug(`Circle ${i} created with radius ${circle.radius}`);
@@ -199,7 +201,7 @@
     // Draw Circle
     ctx.beginPath();
     ctx.arc(0, 0, circle.radius, 0, 2 * Math.PI);
-    ctx.strokeStyle = '#61dafb'; // Single color for simplicity
+    ctx.strokeStyle = circle.color; // Use the assigned color for each circle
     ctx.lineWidth = radiusUnit * 0.05;
     ctx.stroke();
     
@@ -232,170 +234,4 @@
     const dy = y - centerY;
     const distance = Math.sqrt(dx * dx + dy * dy);
     logDebug(`Touch Position: (${x.toFixed(2)}, ${y.toFixed(2)}), Distance from Center: ${distance.toFixed(2)}`);
-    console.log(`Touch Position: (${x.toFixed(2)}, ${y.toFixed(2)}), Distance from Center: ${distance.toFixed(2)}`);
-    for (let i = NUM_CIRCLES - 1; i >= 0; i--) {
-      if (distance <= circles[i].radius + radiusUnit * 0.3 && distance >= circles[i].radius - radiusUnit * 0.3) {
-        logDebug(`Circle ${i} Selected`);
-        console.log(`Circle ${i} Selected:`, circles[i]);
-        return circles[i];
-      }
-    }
-    logDebug('No Circle Selected');
-    console.log('No Circle Selected');
-    return null;
-  }
-  
-  // Rotate the Selected Circle
-  function rotateCircle(circle) {
-    if (gameOver) {
-      logDebug('Game Over. Rotation Disabled.');
-      console.log('Game Over. Rotation Disabled.');
-      return;
-    }
-    circle.rotation = (circle.rotation + (2 * Math.PI / NUM_SECTIONS)) % (2 * Math.PI);
-    logDebug(`Circle Rotated to ${circle.rotation.toFixed(2)} radians`);
-    console.log('Circle Rotated:', circle);
-    drawGame();
-    checkForMerges();  // Check for merges after each rotation
-  }
-  
-  // Touch Event Handling
-  canvas.addEventListener('touchstart', (event) => {
-    event.preventDefault();
-    logDebug('Touch Start');
-    console.log('Touch Start');
-  }, { passive: false });
-  
-  canvas.addEventListener('touchend', (event) => {
-    event.preventDefault();
-    const rect = canvas.getBoundingClientRect();
-    const touch = event.changedTouches[0];
-    const x = (touch.clientX - rect.left) * (canvas.width / rect.width);
-    const y = (touch.clientY - rect.top) * (canvas.height / rect.height);
-    const circle = getCircleAtPosition(x, y);
-    if (circle) {
-      rotateCircle(circle);
-    }
-  }, { passive: false });
-  
-  // Mouse Event Handling for Desktop Testing
-  canvas.addEventListener('click', (event) => {
-    const rect = canvas.getBoundingClientRect();
-    const x = (event.clientX - rect.left) * (canvas.width / rect.width);
-    const y = (event.clientY - rect.top) * (canvas.height / rect.height);
-    const circle = getCircleAtPosition(x, y);
-    if (circle) {
-      rotateCircle(circle);
-    }
-  });
-  
-  // Function to Check for Merges After Rotation
-  function checkForMerges() {
-    let merged = false;
-    
-    for (let i = 0; i < NUM_SECTIONS; i++) {
-      for (let j = NUM_CIRCLES - 1; j > 0; j--) {
-        const circleOuter = circles[j];
-        const circleInner = circles[j - 1];
-        const indexOuter = (i - Math.round(circleOuter.rotation / (2 * Math.PI / NUM_SECTIONS)) + NUM_SECTIONS) % NUM_SECTIONS;
-        const indexInner = (i - Math.round(circleInner.rotation / (2 * Math.PI / NUM_SECTIONS)) + NUM_SECTIONS) % NUM_SECTIONS;
-        const numberOuter = circleOuter.numbers[indexOuter];
-        const numberInner = circleInner.numbers[indexInner];
-        
-        if (numberOuter > 0 && numberOuter === numberInner) {
-          merged = true;
-          const sum = numberOuter + numberInner;
-          circleInner.numbers[indexInner] = sum;
-          circleOuter.numbers[indexOuter] = 0;
-          score += sum;
-          scoreDisplay.textContent = score;
-          logDebug(`Merged numbers: ${numberOuter} + ${numberInner} = ${sum}`);
-          console.log(`Merged numbers: ${numberOuter} + ${numberInner} = ${sum}`);
-        }
-      }
-    }
-    
-    if (merged) {
-      drawGame();
-      respawnNumbers(); // Respawn new numbers after merging
-      if (score >= TARGET_SCORE) {
-        gameOver = true;
-        messageDisplay.textContent = 'Victory!';
-        messageDisplay.style.display = 'block';
-      }
-    } else if (!hasPossibleMoves()) {
-      gameOver = true;
-      messageDisplay.textContent = 'No more moves!';
-      messageDisplay.style.display = 'block';
-    }
-  }
-
-  // Function to Respawn Random Numbers After Merges
-  function respawnNumbers() {
-    circles.forEach((circle, index) => {
-      for (let i = 0; i < NUM_SECTIONS; i++) {
-        if (circle.numbers[i] === 0) {
-          circle.numbers[i] = generateRandomNumber(index);
-          logDebug(`New number ${circle.numbers[i]} respawned at circle ${index}, section ${i}`);
-          console.log(`New number ${circle.numbers[i]} respawned at circle ${index}, section ${i}`);
-        }
-      }
-    });
-    drawGame();
-  }
-
-  // Generate Random Number for Respawn
-  function generateRandomNumber(circleIndex) {
-    const baseNumber = Math.pow(2, circleIndex + 1);
-    return baseNumber + (Math.random() > 0.5 ? 0 : 2); // Randomly choose between base and base+2
-  }
-  
-  // Function to Check if Any Moves Are Possible
-  function hasPossibleMoves() {
-    for (let i = 0; i < NUM_SECTIONS; i++) {
-      for (let j = NUM_CIRCLES - 1; j > 0; j--) {
-        const circleOuter = circles[j];
-        const circleInner = circles[j - 1];
-        const indexOuter = (i - Math.round(circleOuter.rotation / (2 * Math.PI / NUM_SECTIONS)) + NUM_SECTIONS) % NUM_SECTIONS;
-        const indexInner = (i - Math.round(circleInner.rotation / (2 * Math.PI / NUM_SECTIONS)) + NUM_SECTIONS) % NUM_SECTIONS;
-        const numberOuter = circleOuter.numbers[indexOuter];
-        const numberInner = circleInner.numbers[indexInner];
-        
-        if (numberOuter > 0 && numberOuter === numberInner) {
-          return true;
-        }
-      }
-    }
-    return false;
-  }
-  
-  // Restart Button Handling
-  restartBtn.addEventListener('click', () => {
-    initGame();
-  });
-  
-  // Initialize the Game on Page Load
-  window.addEventListener('load', () => {
-    initGame();
-  });
-  
-  // Debug Logging with Throttling to Prevent Flooding
-  let lastLogTime = 0;
-  const logInterval = 100; // in milliseconds
-  
-  function logDebug(message) {
-    const currentTime = Date.now();
-    if (currentTime - lastLogTime > logInterval) {
-      debugInfo.textContent += `${message}\n`;
-      lastLogTime = currentTime;
-    }
-  }
-  
-</script>
-
-</body>
-</html>
-
-
-
-        
+    console.log(`Touch Position: (${x.toFixed(2)}, ${y.toFixed(2)}), Distance from Center: ${distance.toFixed(2
