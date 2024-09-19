@@ -2,21 +2,20 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<title>Concentric Merge</title>
+<title>Concentric Merge Game</title>
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <style>
+  /* Base styling */
   body {
     margin: 0;
-    background-color: #20232a;
     overflow: hidden;
     font-family: Arial, sans-serif;
-    color: #61dafb;
+    background: linear-gradient(135deg, #1e3c72, #2a5298);
   }
   #game-container {
     position: relative;
     width: 100vw;
     height: 100vh;
-    overflow: hidden;
     touch-action: none; /* Prevent default touch behaviors */
   }
   #game-canvas {
@@ -30,6 +29,7 @@
     left: 50%;
     transform: translateX(-50%);
     font-size: 2em;
+    color: #fff;
     z-index: 10;
     text-align: center;
   }
@@ -40,15 +40,15 @@
     transform: translateX(-50%);
     padding: 10px 20px;
     font-size: 1.5em;
-    background-color: #61dafb;
-    color: #20232a;
+    background-color: #fff;
+    color: #1e3c72;
     border: none;
     cursor: pointer;
     border-radius: 5px;
     z-index: 10;
   }
   #restart-btn:hover {
-    background-color: #52a1c3;
+    background-color: #ddd;
   }
   #message {
     position: absolute;
@@ -56,7 +56,7 @@
     left: 50%;
     transform: translate(-50%, -50%);
     font-size: 4em;
-    color: #61dafb;
+    color: #fff;
     display: none;
     z-index: 10;
   }
@@ -74,6 +74,13 @@
   <div id="message"></div>
 </div>
 
+<!-- Sound Assets (Replace '...' with your base64-encoded audio data) -->
+<audio id="rotate-sound" src="data:audio/wav;base64,..."></audio>
+<audio id="merge-sound" src="data:audio/wav;base64,..."></audio>
+<audio id="victory-sound" src="data:audio/wav;base64,..."></audio>
+<audio id="failure-sound" src="data:audio/wav;base64,..."></audio>
+<audio id="background-music" loop src="data:audio/wav;base64,..."></audio>
+
 <script>
   const NUM_CIRCLES = 4;
   const NUM_SECTIONS = 6;
@@ -88,7 +95,16 @@
   const messageDisplay = document.getElementById('message');
   const restartBtn = document.getElementById('restart-btn');
 
+  const rotateSound = document.getElementById('rotate-sound');
+  const mergeSound = document.getElementById('merge-sound');
+  const victorySound = document.getElementById('victory-sound');
+  const failureSound = document.getElementById('failure-sound');
+  const backgroundMusic = document.getElementById('background-music');
+
   targetScoreDisplay.textContent = TARGET_SCORE;
+
+  backgroundMusic.volume = 0.3;
+  backgroundMusic.play();
 
   let circles = [];
   let canvasWidth, canvasHeight, centerX, centerY, radiusUnit;
@@ -112,12 +128,10 @@
     centerX = canvasWidth / 2;
     centerY = canvasHeight / 2;
     radiusUnit = Math.min(canvasWidth, canvasHeight) / (NUM_CIRCLES + 2);
+    drawGame();
   }
 
-  window.addEventListener('resize', () => {
-    resizeCanvas();
-    drawGame();
-  });
+  window.addEventListener('resize', resizeCanvas);
 
   function createCircles() {
     for (let i = 0; i < NUM_CIRCLES; i++) {
@@ -125,6 +139,7 @@
         radius: radiusUnit * (i + 1),
         rotation: 0,
         numbers: generateNumbers(i),
+        color: `hsl(${(i * 60) % 360}, 70%, 50%)`,
       });
     }
   }
@@ -146,13 +161,13 @@
   }
 
   function drawCircle(circle) {
-    // Draw Circle
     ctx.save();
     ctx.translate(centerX, centerY);
     ctx.rotate(circle.rotation);
+    // Draw Circle
     ctx.beginPath();
     ctx.arc(0, 0, circle.radius, 0, 2 * Math.PI);
-    ctx.strokeStyle = '#61dafb';
+    ctx.strokeStyle = circle.color;
     ctx.lineWidth = radiusUnit * 0.05;
     ctx.stroke();
 
@@ -193,6 +208,8 @@
     if (gameOver) return;
     circle.rotation = (circle.rotation + (2 * Math.PI / NUM_SECTIONS)) % (2 * Math.PI);
     drawGame();
+    rotateSound.currentTime = 0;
+    rotateSound.play();
     checkForMerges();
   }
 
@@ -241,33 +258,56 @@
           circleOuter.numbers[indexOuter] = 0;
           score += sum;
           scoreDisplay.textContent = score;
-          // Visual feedback
-          drawMergeEffect();
+          mergeSound.currentTime = 0;
+          mergeSound.play();
+          animateMerge(circleInner, indexInner);
         }
       }
     }
     if (merged) {
-      drawGame();
-      if (score >= TARGET_SCORE) {
-        gameOver = true;
-        messageDisplay.textContent = 'Victory!';
-        messageDisplay.style.display = 'block';
-      }
+      setTimeout(() => {
+        drawGame();
+        if (score >= TARGET_SCORE) {
+          gameOver = true;
+          messageDisplay.textContent = 'Victory!';
+          messageDisplay.style.display = 'block';
+          victorySound.play();
+        }
+      }, 300);
     } else {
       if (!hasPossibleMoves()) {
         gameOver = true;
         messageDisplay.textContent = 'Try Again!';
         messageDisplay.style.display = 'block';
+        failureSound.play();
       }
     }
   }
 
-  function drawMergeEffect() {
-    ctx.fillStyle = 'rgba(255, 255, 255, 0.2)';
-    ctx.fillRect(0, 0, canvas.width, canvas.height);
-    setTimeout(() => {
-      drawGame();
-    }, 100);
+  function animateMerge(circle, index) {
+    const angle = (2 * Math.PI / NUM_SECTIONS) * index;
+    const x = centerX + (circle.radius - radiusUnit * 0.3) * Math.cos(angle + circle.rotation);
+    const y = centerY + (circle.radius - radiusUnit * 0.3) * Math.sin(angle + circle.rotation);
+    const startTime = Date.now();
+    const duration = 300;
+
+    function animation() {
+      const elapsed = Date.now() - startTime;
+      const progress = Math.min(elapsed / duration, 1);
+      ctx.save();
+      ctx.translate(x, y);
+      ctx.scale(1 + progress, 1 + progress);
+      ctx.fillStyle = '#fff';
+      ctx.font = `${radiusUnit * 0.5}px Arial`;
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText(circle.numbers[index], 0, 0);
+      ctx.restore();
+      if (progress < 1) {
+        requestAnimationFrame(animation);
+      }
+    }
+    requestAnimationFrame(animation);
   }
 
   function hasPossibleMoves() {
@@ -291,11 +331,9 @@
     initGame();
   });
 
-  // Initialize the game on page load
   window.addEventListener('load', () => {
     initGame();
   });
-
 </script>
 
 </body>
