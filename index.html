@@ -2,90 +2,241 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<title>Satisfying Bubble Pop Game</title>
+<title>Concentric Merge</title>
 <style>
-    body {
-        margin: 0;
-        overflow: hidden;
-        background: radial-gradient(circle, #a1c4fd, #c2e9fb);
-    }
-    .bubble {
-        position: absolute;
-        border-radius: 50%;
-        background: radial-gradient(circle at top left, #ff9a9e, #fad0c4);
-        box-shadow: 0 0 15px rgba(255, 255, 255, 0.5);
-        animation: floatUp 5s linear infinite;
-    }
-    @keyframes floatUp {
-        from { transform: translateY(100%); opacity: 0; }
-        to { transform: translateY(-150%); opacity: 1; }
-    }
-    .pop-effect {
-        position: absolute;
-        border-radius: 50%;
-        background: radial-gradient(circle at center, #fbc2eb, #a6c1ee);
-        opacity: 0.8;
-        animation: popAnimation 0.5s forwards;
-    }
-    @keyframes popAnimation {
-        from { transform: scale(1); opacity: 0.8; }
-        to { transform: scale(2); opacity: 0; }
-    }
+  /* Embedded CSS for styling */
+  body {
+    margin: 0;
+    padding: 0;
+    background-color: #222;
+    overflow: hidden;
+    font-family: Arial, sans-serif;
+    color: #fff;
+    text-align: center;
+  }
+
+  #gameContainer {
+    position: relative;
+    width: 100vw;
+    height: 100vh;
+  }
+
+  .circle {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform-origin: center center;
+    border-radius: 50%;
+    cursor: pointer;
+    transition: transform 0.5s;
+  }
+
+  .section {
+    position: absolute;
+    width: 50%;
+    height: 50%;
+    background-color: rgba(255, 255, 255, 0.1);
+    border: 1px solid #fff;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.5em;
+    color: #fff;
+    transition: background-color 0.5s, transform 0.5s;
+  }
+
+  .section:hover {
+    background-color: rgba(255, 255, 255, 0.2);
+  }
+
+  #scoreBoard {
+    position: absolute;
+    top: 10px;
+    left: 50%;
+    transform: translateX(-50%);
+    font-size: 1.2em;
+  }
+
+  #restartButton {
+    position: absolute;
+    bottom: 20px;
+    left: 50%;
+    transform: translateX(-50%);
+    padding: 10px 20px;
+    background-color: #fff;
+    color: #222;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+  }
+
+  #message {
+    position: absolute;
+    top: 40%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    font-size: 2em;
+    display: none;
+  }
 </style>
 </head>
 <body>
+<div id="gameContainer">
+  <div id="scoreBoard">Score: <span id="score">0</span> / Target: <span id="targetScore">1000</span></div>
+  <div id="message"></div>
+  <button id="restartButton">Restart</button>
+</div>
 
 <script>
-// Sound effect (Base64-encoded)
-const popSoundSrc = 'data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEAESsAACJWAAACABAAZGF0YQAA...'; // Truncated for brevity
+  /* Embedded JavaScript for game logic */
+  const gameContainer = document.getElementById('gameContainer');
+  const scoreDisplay = document.getElementById('score');
+  const targetScoreDisplay = document.getElementById('targetScore');
+  const messageDisplay = document.getElementById('message');
+  const restartButton = document.getElementById('restartButton');
 
-const popSound = new Audio(popSoundSrc);
-let spawnInterval = 2000;
+  let circles = [];
+  let score = 0;
+  let targetScore = 1000;
 
-function createBubble() {
-    const bubble = document.createElement('div');
-    const size = Math.random() * 50 + 30;
-    bubble.classList.add('bubble');
-    bubble.style.width = `${size}px`;
-    bubble.style.height = `${size}px`;
-    bubble.style.left = `${Math.random() * (window.innerWidth - size)}px`;
-    bubble.style.top = `${window.innerHeight}px`;
-    document.body.appendChild(bubble);
+  // Sound assets
+  const rotateSound = new Audio('data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEAESsAAAB3AQACABAAZGF0YQgAAA==');
+  const mergeSound = new Audio('data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEAESsAAAB3AQACABAAZGF0YQgAAA==');
+  const victorySound = new Audio('data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEAESsAAAB3AQACABAAZGF0YQgAAA==');
+  const failureSound = new Audio('data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEAESsAAAB3AQACABAAZGF0YQgAAA==');
 
-    bubble.addEventListener('click', () => {
-        popSound.currentTime = 0;
-        popSound.play();
-        createPopEffect(bubble.style.left, bubble.style.top, size);
-        bubble.remove();
+  function initGame() {
+    score = 0;
+    scoreDisplay.textContent = score;
+    targetScoreDisplay.textContent = targetScore;
+    messageDisplay.style.display = 'none';
+
+    // Remove existing circles
+    circles.forEach(circle => gameContainer.removeChild(circle.element));
+    circles = [];
+
+    // Create circles
+    for (let i = 0; i < 4; i++) {
+      createCircle(i);
+    }
+  }
+
+  function createCircle(index) {
+    const circleSize = (index + 1) * 100;
+    const circle = document.createElement('div');
+    circle.classList.add('circle');
+    circle.style.width = circle.style.height = `${circleSize}px`;
+    circle.style.marginLeft = circle.style.marginTop = `-${circleSize / 2}px`;
+    circle.style.zIndex = 4 - index;
+
+    // Create sections
+    const sections = [];
+    for (let i = 0; i < 6; i++) {
+      const section = document.createElement('div');
+      section.classList.add('section');
+      section.style.width = section.style.height = '50%';
+      section.style.transformOrigin = '100% 100%';
+      section.style.transform = `rotate(${i * 60}deg) translate(100%) rotate(-${i * 60}deg)`;
+      const number = Math.pow(2, index + 1);
+      section.textContent = number;
+      circle.appendChild(section);
+      sections.push({ element: section, number });
+    }
+
+    circle.addEventListener('click', () => rotateCircle(circle, sections));
+    gameContainer.appendChild(circle);
+    circles.push({ element: circle, sections, angle: 0 });
+  }
+
+  function rotateCircle(circleObj, sections) {
+    // Play rotate sound
+    rotateSound.play();
+
+    circleObj.angle += 60;
+    circleObj.element.style.transform = `translate(-50%, -50%) rotate(${circleObj.angle}deg)`;
+
+    // Check for merges after rotation completes
+    setTimeout(checkMerges, 500);
+  }
+
+  function checkMerges() {
+    let merged = false;
+    // Compare sections between adjacent circles
+    for (let i = 0; i < 6; i++) {
+      const matchingSections = [];
+      let minNumber = Infinity;
+
+      circles.forEach(circle => {
+        const section = circle.sections[i];
+        if (section && section.number) {
+          matchingSections.push(section);
+          if (section.number < minNumber) minNumber = section.number;
+        }
+      });
+
+      // Check if all numbers match
+      if (matchingSections.length > 1 && matchingSections.every(s => s.number === minNumber)) {
+        merged = true;
+        mergeSections(matchingSections, i, minNumber);
+      }
+    }
+
+    if (merged) {
+      // Play merge sound
+      mergeSound.play();
+    }
+
+    updateScore();
+
+    // Check for win or lose condition
+    if (score >= targetScore) {
+      // Play victory sound
+      victorySound.play();
+      messageDisplay.textContent = 'Victory!';
+      messageDisplay.style.display = 'block';
+    } else if (!merged) {
+      // No more possible merges
+      // Play failure sound
+      failureSound.play();
+      messageDisplay.textContent = 'Try Again!';
+      messageDisplay.style.display = 'block';
+    }
+  }
+
+  function mergeSections(sections, index, number) {
+    // Visual effect for merging
+    sections.forEach(section => {
+      section.element.style.backgroundColor = 'rgba(255, 255, 0, 0.5)';
+      setTimeout(() => {
+        section.element.style.backgroundColor = 'rgba(255, 255, 255, 0.1)';
+      }, 500);
     });
 
-    // Remove bubble after it floats up
-    setTimeout(() => { bubble.remove(); }, 5000);
-}
+    // Merge numbers into the innermost circle
+    const innermostSection = circles[0].sections[index];
+    const sum = sections.reduce((acc, s) => acc + s.number, 0);
+    innermostSection.number = sum;
+    innermostSection.element.textContent = sum;
 
-function createPopEffect(x, y, size) {
-    const effect = document.createElement('div');
-    effect.classList.add('pop-effect');
-    effect.style.width = `${size}px`;
-    effect.style.height = `${size}px`;
-    effect.style.left = x;
-    effect.style.top = y;
-    document.body.appendChild(effect);
+    // Remove numbers from other sections
+    sections.slice(1).forEach(section => {
+      section.number = null;
+      section.element.textContent = '';
+    });
 
-    setTimeout(() => { effect.remove(); }, 500);
-}
+    // Update score
+    score += sum;
+  }
 
-function increaseSpawnSpeed() {
-    if (spawnInterval > 500) {
-        spawnInterval -= 100;
-    }
-}
+  function updateScore() {
+    scoreDisplay.textContent = score;
+  }
 
-setInterval(() => {
-    createBubble();
-    increaseSpawnSpeed();
-}, spawnInterval);
+  // Event listener for restart button
+  restartButton.addEventListener('click', initGame);
+
+  // Initialize the game on page load
+  initGame();
 </script>
-
 </body>
 </html>
