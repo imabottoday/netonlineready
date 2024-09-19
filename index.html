@@ -240,7 +240,7 @@
         return circles[i];
       }
     }
-    logDebug('No Circle Selected');
+  logDebug('No Circle Selected');
     console.log('No Circle Selected');
     return null;
   }
@@ -317,6 +317,7 @@
     
     if (merged) {
       drawGame();
+      respawnNumbers(); // Respawn new numbers after merging
       if (score >= TARGET_SCORE) {
         gameOver = true;
         messageDisplay.textContent = 'Victory!';
@@ -327,6 +328,26 @@
       messageDisplay.textContent = 'No more moves!';
       messageDisplay.style.display = 'block';
     }
+  }
+
+  // Function to Respawn Random Numbers After Merges
+  function respawnNumbers() {
+    circles.forEach((circle, index) => {
+      for (let i = 0; i < NUM_SECTIONS; i++) {
+        if (circle.numbers[i] === 0) {
+          circle.numbers[i] = generateRandomNumber(index);
+          logDebug(`New number ${circle.numbers[i]} respawned at circle ${index}, section ${i}`);
+          console.log(`New number ${circle.numbers[i]} respawned at circle ${index}, section ${i}`);
+        }
+      }
+    });
+    drawGame();
+  }
+
+  // Generate Random Number for Respawn
+  function generateRandomNumber(circleIndex) {
+    const baseNumber = Math.pow(2, circleIndex + 1);
+    return baseNumber + (Math.random() > 0.5 ? 0 : 2); // Randomly choose between base and base+2
   }
   
   // Function to Check if Any Moves Are Possible
