@@ -2,9 +2,10 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<title>Concentric Merge Game</title>
+<title>Concentric Merge Game - Debug Mode</title>
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <style>
+  /* Base styling */
   body {
     margin: 0;
     overflow: hidden;
@@ -59,6 +60,7 @@
     display: none;
     z-index: 10;
   }
+  /* Debugging info */
   #debug-info {
     position: absolute;
     top: 10px;
@@ -90,7 +92,7 @@
 
 <script>
   // Game Constants
-  const NUM_CIRCLES = 4; // Reintroducing multiple circles
+  const NUM_CIRCLES = 2; // Start with two circles for debugging
   const NUM_SECTIONS = 6;
   const TARGET_SCORE = 500;
   
@@ -245,7 +247,7 @@
   
   // Rotate the Selected Circle
   function rotateCircle(circle) {
-    if (gameOver {
+    if (gameOver) {
       logDebug('Game Over. Rotation Disabled.');
       console.log('Game Over. Rotation Disabled.');
       return;
@@ -254,8 +256,7 @@
     logDebug(`Circle Rotated to ${circle.rotation.toFixed(2)} radians`);
     console.log('Circle Rotated:', circle);
     drawGame();
-    // Uncomment the following line when merge logic is implemented
-    // checkForMerges();
+    checkForMerges();  // Check for merges after each rotation
   }
 
   // Touch Event Handling
@@ -288,6 +289,65 @@
     }
   });
 
+  // Function to Check for Merges After Rotation
+  function checkForMerges() {
+    let merged = false;
+    
+    for (let i = 0; i < NUM_SECTIONS; i++) {
+      for (let j = NUM_CIRCLES - 1; j > 0; j--) {
+        const circleOuter = circles[j];
+        const circleInner = circles[j - 1];
+        const indexOuter = (i - Math.round(circleOuter.rotation / (2 * Math.PI / NUM_SECTIONS)) + NUM_SECTIONS) % NUM_SECTIONS;
+        const indexInner = (i - Math.round(circleInner.rotation / (2 * Math.PI / NUM_SECTIONS)) + NUM_SECTIONS) % NUM_SECTIONS;
+        const numberOuter = circleOuter.numbers[indexOuter];
+        const numberInner = circleInner.numbers[indexInner];
+        
+        if (numberOuter > 0 && numberOuter === numberInner) {
+          merged = true;
+          const sum = numberOuter + numberInner;
+          circleInner.numbers[indexInner] = sum;
+          circleOuter.numbers[indexOuter] = 0;
+          score += sum;
+          scoreDisplay.textContent = score;
+          logDebug(`Merged numbers: ${numberOuter} + ${numberInner} = ${sum}`);
+          console.log(`Merged numbers: ${numberOuter} + ${numberInner} = ${sum}`);
+        }
+      }
+    }
+    
+    if (merged) {
+      drawGame();
+      if (score >= TARGET_SCORE) {
+        gameOver = true;
+        messageDisplay.textContent = 'Victory!';
+        messageDisplay.style.display = 'block';
+      }
+    } else if (!hasPossibleMoves()) {
+      gameOver = true;
+      messageDisplay.textContent = 'No more moves!';
+      messageDisplay.style.display = 'block';
+    }
+  }
+
+  // Function to Check if Any Moves Are Possible
+  function hasPossibleMoves() {
+    for (let i = 0; i < NUM_SECTIONS; i++) {
+      for (let j = NUM_CIRCLES - 1; j > 0; j--) {
+        const circleOuter = circles[j];
+        const circleInner = circles[j - 1];
+        const indexOuter = (i - Math.round(circleOuter.rotation / (2 * Math.PI / NUM_SECTIONS)) + NUM_SECTIONS) % NUM_SECTIONS;
+        const indexInner = (i - Math.round(circleInner.rotation / (2 * Math.PI / NUM_SECTIONS)) + NUM_SECTIONS) % NUM_SECTIONS;
+        const numberOuter = circleOuter.numbers[indexOuter];
+        const numberInner = circleInner.numbers[indexInner];
+        
+        if (numberOuter > 0 && numberOuter === numberInner) {
+          return true;
+        }
+      }
+    }
+    return false;
+  }
+
   // Restart Button Handling
   restartBtn.addEventListener('click', () => {
     initGame();
@@ -313,4 +373,4 @@
 </script>
 
 </body>
-</html>
+</html>               
