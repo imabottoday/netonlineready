@@ -72,6 +72,8 @@
     padding: 5px 10px;
     border-radius: 5px;
     white-space: pre-line;
+    max-height: 90vh;
+    overflow-y: auto;
   }
 </style>
 </head>
@@ -89,12 +91,16 @@
 </div>
 
 <script>
+  // Game Constants
   const NUM_CIRCLES = 1; // Start with one circle for debugging
   const NUM_SECTIONS = 6;
   const TARGET_SCORE = 500;
+  
+  // Game Variables
   let score = 0;
   let gameOver = false;
-
+  
+  // DOM Elements
   const canvas = document.getElementById('game-canvas');
   const ctx = canvas.getContext('2d');
   const scoreDisplay = document.getElementById('score');
@@ -102,12 +108,17 @@
   const messageDisplay = document.getElementById('message');
   const restartBtn = document.getElementById('restart-btn');
   const debugInfo = document.getElementById('debug-info');
-
+  
+  // Initialize Target Score
   targetScoreDisplay.textContent = TARGET_SCORE;
-
+  
+  // Circle Data Structure
   let circles = [];
+  
+  // Canvas Dimensions and Calculations
   let canvasWidth, canvasHeight, centerX, centerY, radiusUnit;
-
+  
+  // Initialize Game
   function initGame() {
     score = 0;
     gameOver = false;
@@ -117,10 +128,11 @@
     resizeCanvas();
     createCircles();
     drawGame();
-    debugInfo.textContent = 'Game Initialized';
+    logDebug('Game Initialized');
     console.log('Game Initialized');
   }
-
+  
+  // Resize Canvas and Recalculate Dimensions
   function resizeCanvas() {
     canvasWidth = canvas.offsetWidth;
     canvasHeight = canvas.offsetHeight;
@@ -130,55 +142,67 @@
     centerY = canvasHeight / 2;
     radiusUnit = Math.min(canvasWidth, canvasHeight) / (NUM_CIRCLES + 2);
     drawGame();
+    logDebug(`Canvas Resized: Width=${canvasWidth}, Height=${canvasHeight}, CenterX=${centerX}, CenterY=${centerY}, RadiusUnit=${radiusUnit}`);
     console.log('Canvas Resized:', { canvasWidth, canvasHeight, centerX, centerY, radiusUnit });
-    debugInfo.textContent += '\nCanvas Resized';
   }
-
+  
+  // Handle Window Resize
   window.addEventListener('resize', resizeCanvas);
-
+  
+  // Create Circles with Initial Numbers
   function createCircles() {
     for (let i = 0; i < NUM_CIRCLES; i++) {
-      circles.push({
+      const circle = {
         radius: radiusUnit * (i + 1),
         rotation: 0,
         numbers: generateNumbers(i),
-      });
+      };
+      circles.push(circle);
+      logDebug(`Circle ${i} created with radius ${circle.radius}`);
+      console.log(`Circle ${i} created:`, circle);
     }
-    console.log('Circles Created:', circles);
-    debugInfo.textContent += '\nCircles Created';
   }
-
+  
+  // Generate Numbers for Each Circle
   function generateNumbers(circleIndex) {
     const baseNumber = Math.pow(2, circleIndex + 1);
     let numbers = [];
     for (let i = 0; i < NUM_SECTIONS; i++) {
       numbers.push(baseNumber);
     }
+    logDebug(`Numbers Generated for Circle ${circleIndex}: ${numbers.join(', ')}`);
     console.log(`Numbers Generated for Circle ${circleIndex}:`, numbers);
     return numbers;
   }
-
+  
+  // Draw the Entire Game (All Circles)
   function drawGame() {
     ctx.clearRect(0, 0, canvasWidth, canvasHeight);
-    for (let i = NUM_CIRCLES - 1; i >= 0; i--) {
-      drawCircle(circles[i]);
+    if (circles.length > 0) {
+      circles.forEach((circle, index) => {
+        drawCircle(circle, index);
+      });
+      logDebug('Game Drawn');
+      console.log('Game Drawn');
+    } else {
+      logDebug('No circles to draw');
+      console.log('No circles to draw');
     }
-    console.log('Game Drawn');
-    debugInfo.textContent += '\nGame Drawn';
   }
-
-  function drawCircle(circle) {
+  
+  // Draw Individual Circle with Numbers
+  function drawCircle(circle, index) {
     ctx.save();
     ctx.translate(centerX, centerY);
     ctx.rotate(circle.rotation);
-
+    
     // Draw Circle
     ctx.beginPath();
     ctx.arc(0, 0, circle.radius, 0, 2 * Math.PI);
     ctx.strokeStyle = '#61dafb'; // Single color for simplicity
     ctx.lineWidth = radiusUnit * 0.05;
     ctx.stroke();
-
+    
     // Draw Numbers
     for (let i = 0; i < NUM_SECTIONS; i++) {
       const angle = (2 * Math.PI / NUM_SECTIONS) * i;
@@ -198,45 +222,51 @@
       ctx.restore();
     }
     ctx.restore();
-    console.log('Circle Drawn:', circle);
-    debugInfo.textContent += '\nCircle Drawn';
+    logDebug(`Circle ${index} Drawn with Rotation ${circle.rotation.toFixed(2)} radians`);
+    console.log(`Circle ${index} Drawn:`, circle);
   }
-
+  
+  // Detect Circle Selection Based on Touch or Click Position
   function getCircleAtPosition(x, y) {
     const dx = x - centerX;
     const dy = y - centerY;
     const distance = Math.sqrt(dx * dx + dy * dy);
+    logDebug(`Touch Position: (${x.toFixed(2)}, ${y.toFixed(2)}), Distance from Center: ${distance.toFixed(2)}`);
     console.log(`Touch Position: (${x.toFixed(2)}, ${y.toFixed(2)}), Distance from Center: ${distance.toFixed(2)}`);
     for (let i = NUM_CIRCLES - 1; i >= 0; i--) {
       if (distance <= circles[i].radius + radiusUnit * 0.3 && distance >= circles[i].radius - radiusUnit * 0.3) {
-        console.log(`Circle Selected:`, circles[i]);
+        logDebug(`Circle ${i} Selected`);
+        console.log(`Circle ${i} Selected:`, circles[i]);
         return circles[i];
       }
     }
+    logDebug('No Circle Selected');
     console.log('No Circle Selected');
     return null;
   }
-
+  
+  // Rotate the Selected Circle
   function rotateCircle(circle) {
     if (gameOver) {
+      logDebug('Game Over. Rotation Disabled.');
       console.log('Game Over. Rotation Disabled.');
       return;
     }
     circle.rotation = (circle.rotation + (2 * Math.PI / NUM_SECTIONS)) % (2 * Math.PI);
+    logDebug(`Circle Rotated to ${circle.rotation.toFixed(2)} radians`);
     console.log('Circle Rotated:', circle);
-    debugInfo.textContent += '\nCircle Rotated';
     drawGame();
     // Uncomment the following line when merge logic is implemented
     // checkForMerges();
   }
-
-  // Touch handling
+  
+  // Touch Event Handling
   canvas.addEventListener('touchstart', (event) => {
     event.preventDefault();
-    debugInfo.textContent += '\nTouch Start';
+    logDebug('Touch Start');
     console.log('Touch Start');
   }, { passive: false });
-
+  
   canvas.addEventListener('touchend', (event) => {
     event.preventDefault();
     const rect = canvas.getBoundingClientRect();
@@ -248,8 +278,8 @@
       rotateCircle(circle);
     }
   }, { passive: false });
-
-  // Mouse handling
+  
+  // Mouse Event Handling for Desktop Testing
   canvas.addEventListener('click', (event) => {
     const rect = canvas.getBoundingClientRect();
     const x = (event.clientX - rect.left) * (canvas.width / rect.width);
@@ -259,43 +289,30 @@
       rotateCircle(circle);
     }
   });
-
-  // Uncomment and implement merge logic when ready
-  /*
-  function checkForMerges() {
-    let merged = false;
-    // Implement merging logic here
-    if (merged) {
-      drawGame();
-      if (score >= TARGET_SCORE) {
-        gameOver = true;
-        messageDisplay.textContent = 'Victory!';
-        messageDisplay.style.display = 'block';
-      }
-    } else {
-      if (!hasPossibleMoves()) {
-        gameOver = true;
-        messageDisplay.textContent = 'No more moves!';
-        messageDisplay.style.display = 'block';
-      }
-    }
-  }
-
-  function hasPossibleMoves() {
-    // Implement logic to check for possible merges
-    return false;
-  }
-  */
-
+  
+  // Restart Button Handling
   restartBtn.addEventListener('click', () => {
     initGame();
   });
-
+  
+  // Initialize the Game on Page Load
   window.addEventListener('load', () => {
     initGame();
   });
+  
+  // Debug Logging with Throttling to Prevent Flooding
+  let lastLogTime = 0;
+  const logInterval = 100; // in milliseconds
+  
+  function logDebug(message) {
+    const currentTime = Date.now();
+    if (currentTime - lastLogTime > logInterval) {
+      debugInfo.textContent += `${message}\n`;
+      lastLogTime = currentTime;
+    }
+  }
+  
 </script>
 
 </body>
 </html>
-
