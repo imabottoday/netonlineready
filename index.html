@@ -125,6 +125,7 @@
         numbers: generateNumbers(i),
       });
     }
+    console.log('Circles created:', circles);
   }
 
   function generateNumbers(circleIndex) {
@@ -192,8 +193,7 @@
     if (gameOver) return;
     circle.rotation = (circle.rotation + (2 * Math.PI / NUM_SECTIONS)) % (2 * Math.PI);
     drawGame();
-    // Commented out merging logic for now
-    // checkForMerges();
+    checkForMerges();
   }
 
   // Touch handling
@@ -224,10 +224,61 @@
     }
   });
 
-  // Commented out merging logic for now
-  // function checkForMerges() {
-  //   // Merging logic here
-  // }
+  function checkForMerges() {
+    let merged = false;
+    for (let i = 0; i < NUM_SECTIONS; i++) {
+      for (let j = NUM_CIRCLES - 1; j > 0; j--) {
+        const circleOuter = circles[j];
+        const circleInner = circles[j - 1];
+        const indexOuter = (i - Math.round(circleOuter.rotation / (2 * Math.PI / NUM_SECTIONS)) + NUM_SECTIONS) % NUM_SECTIONS;
+        const indexInner = (i - Math.round(circleInner.rotation / (2 * Math.PI / NUM_SECTIONS)) + NUM_SECTIONS) % NUM_SECTIONS;
+        const numberOuter = circleOuter.numbers[indexOuter];
+        const numberInner = circleInner.numbers[indexInner];
+        if (numberOuter > 0 && numberOuter === numberInner) {
+          merged = true;
+          const sum = numberOuter + numberInner;
+          circleInner.numbers[indexInner] = sum;
+          circleOuter.numbers[indexOuter] = 0;
+          score += sum;
+          scoreDisplay.textContent = score;
+          // Visual feedback
+          // For now, we'll just log the merge
+          console.log(`Merged ${numberOuter} at section ${i}`);
+        }
+      }
+    }
+    if (merged) {
+      drawGame();
+      if (score >= TARGET_SCORE) {
+        gameOver = true;
+        messageDisplay.textContent = 'Victory!';
+        messageDisplay.style.display = 'block';
+      }
+    } else {
+      if (!hasPossibleMoves()) {
+        gameOver = true;
+        messageDisplay.textContent = 'No more moves!';
+        messageDisplay.style.display = 'block';
+      }
+    }
+  }
+
+  function hasPossibleMoves() {
+    for (let i = 0; i < NUM_SECTIONS; i++) {
+      for (let j = NUM_CIRCLES - 1; j > 0; j--) {
+        const circleOuter = circles[j];
+        const circleInner = circles[j - 1];
+        const indexOuter = (i - Math.round(circleOuter.rotation / (2 * Math.PI / NUM_SECTIONS)) + NUM_SECTIONS) % NUM_SECTIONS;
+        const indexInner = (i - Math.round(circleInner.rotation / (2 * Math.PI / NUM_SECTIONS)) + NUM_SECTIONS) % NUM_SECTIONS;
+        const numberOuter = circleOuter.numbers[indexOuter];
+        const numberInner = circleInner.numbers[indexInner];
+        if (numberOuter > 0 && numberOuter === numberInner) {
+          return true;
+        }
+      }
+    }
+    return false;
+  }
 
   restartBtn.addEventListener('click', () => {
     initGame();
@@ -240,4 +291,3 @@
 
 </body>
 </html>
-
