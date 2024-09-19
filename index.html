@@ -71,6 +71,7 @@
     background-color: rgba(0,0,0,0.5);
     padding: 5px 10px;
     border-radius: 5px;
+    white-space: pre-line;
   }
 </style>
 </head>
@@ -130,6 +131,7 @@
     radiusUnit = Math.min(canvasWidth, canvasHeight) / (NUM_CIRCLES + 2);
     drawGame();
     console.log('Canvas Resized:', { canvasWidth, canvasHeight, centerX, centerY, radiusUnit });
+    debugInfo.textContent += '\nCanvas Resized';
   }
 
   window.addEventListener('resize', resizeCanvas);
@@ -296,3 +298,4 @@
 
 </body>
 </html>
+
