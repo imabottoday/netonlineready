@@ -5,6 +5,7 @@
 <title>Concentric Merge</title>
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <style>
+  /* Responsive styling for the game layout */
   body {
     margin: 0;
     background-color: #20232a;
@@ -17,6 +18,7 @@
     width: 100vw;
     height: 100vh;
     overflow: hidden;
+    touch-action: none; /* Prevent default touch behaviors */
   }
   #game-canvas {
     display: block;
@@ -30,6 +32,7 @@
     transform: translateX(-50%);
     font-size: 2em;
     z-index: 10;
+    text-align: center;
   }
   #restart-btn {
     position: absolute;
@@ -44,6 +47,9 @@
     cursor: pointer;
     border-radius: 5px;
     z-index: 10;
+  }
+  #restart-btn:hover {
+    background-color: #52a1c3;
   }
   #message {
     position: absolute;
@@ -77,6 +83,7 @@
 <audio id="background-music" loop src="data:audio/wav;base64,..."></audio>
 
 <script>
+  // Game Variables
   const NUM_CIRCLES = 4;
   const NUM_SECTIONS = 6;
   const TARGET_SCORE = 500;
@@ -198,37 +205,33 @@
     checkForMerges();
   }
 
+  // Touch handling
+  canvas.addEventListener('touchstart', (event) => {
+    event.preventDefault();
+  }, { passive: false });
+
+  canvas.addEventListener('touchend', (event) => {
+    event.preventDefault();
+    const rect = canvas.getBoundingClientRect();
+    const touch = event.changedTouches[0];
+    const x = (touch.clientX - rect.left) * (canvas.width / rect.width);
+    const y = (touch.clientY - rect.top) * (canvas.height / rect.height);
+    const circle = getCircleAtPosition(x, y);
+    if (circle) {
+      rotateCircle(circle);
+    }
+  }, { passive: false });
+
+  // Mouse handling
   canvas.addEventListener('click', (event) => {
     const rect = canvas.getBoundingClientRect();
-    const x = (event.clientX - rect.left);
-    const y = (event.clientY - rect.top);
+    const x = (event.clientX - rect.left) * (canvas.width / rect.width);
+    const y = (event.clientY - rect.top) * (canvas.height / rect.height);
     const circle = getCircleAtPosition(x, y);
     if (circle) {
       rotateCircle(circle);
     }
   });
-
-  // Touch handling
-  let touchStartTime = 0;
-  canvas.addEventListener('touchstart', (event) => {
-    event.preventDefault();
-    touchStartTime = Date.now();
-  }, { passive: false });
-
-  canvas.addEventListener('touchend', (event) => {
-    event.preventDefault();
-    const touchDuration = Date.now() - touchStartTime;
-    if (touchDuration < 500) { // Considered as tap
-      const rect = canvas.getBoundingClientRect();
-      const touch = event.changedTouches[0];
-      const x = (touch.clientX - rect.left);
-      const y = (touch.clientY - rect.top);
-      const circle = getCircleAtPosition(x, y);
-      if (circle) {
-        rotateCircle(circle);
-      }
-    }
-  }, { passive: false });
 
   function checkForMerges() {
     let merged = false;
@@ -249,6 +252,8 @@
           scoreDisplay.textContent = score;
           mergeSound.currentTime = 0;
           mergeSound.play();
+          // Immediate visual feedback
+          drawMergeEffect();
         }
       }
     }
@@ -268,6 +273,15 @@
         failureSound.play();
       }
     }
+  }
+
+  function drawMergeEffect() {
+    // Simple flash effect for visual feedback
+    ctx.fillStyle = 'rgba(255, 255, 255, 0.2)';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    setTimeout(() => {
+      drawGame();
+    }, 100);
   }
 
   function hasPossibleMoves() {
@@ -291,7 +305,11 @@
     initGame();
   });
 
-  initGame();
+  // Initialize the game on page load
+  window.addEventListener('load', () => {
+    initGame();
+  });
+
 </script>
 
 </body>
