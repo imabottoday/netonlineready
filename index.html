@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<title>Simple Circle Rotation</title>
+<title>Concentric Merge</title>
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <style>
   body {
@@ -24,13 +24,41 @@
     width: 100%;
     height: 100%;
   }
-  #debug-info {
+  #scoreboard {
     position: absolute;
     top: 10px;
-    left: 10px;
-    color: #fff;
+    left: 50%;
+    transform: translateX(-50%);
+    font-size: 2em;
     z-index: 10;
-    font-size: 1em;
+    text-align: center;
+  }
+  #restart-btn {
+    position: absolute;
+    bottom: 20px;
+    left: 50%;
+    transform: translateX(-50%);
+    padding: 10px 20px;
+    font-size: 1.5em;
+    background-color: #61dafb;
+    color: #20232a;
+    border: none;
+    cursor: pointer;
+    border-radius: 5px;
+    z-index: 10;
+  }
+  #restart-btn:hover {
+    background-color: #52a1c3;
+  }
+  #message {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    font-size: 4em;
+    color: #61dafb;
+    display: none;
+    z-index: 10;
   }
 </style>
 </head>
@@ -38,15 +66,43 @@
 
 <div id="game-container">
   <canvas id="game-canvas"></canvas>
-  <!-- Debugging info -->
-  <div id="debug-info"></div>
+  <div id="scoreboard">
+    <div>Score: <span id="score">0</span></div>
+    <div>Target Score: <span id="target-score">500</span></div>
+  </div>
+  <button id="restart-btn">Restart</button>
+  <div id="message"></div>
 </div>
 
 <script>
+  const NUM_CIRCLES = 4;
+  const NUM_SECTIONS = 6;
+  const TARGET_SCORE = 500;
+  let score = 0;
+  let gameOver = false;
+
   const canvas = document.getElementById('game-canvas');
   const ctx = canvas.getContext('2d');
-  let canvasWidth, canvasHeight, centerX, centerY, radius;
-  let rotation = 0;
+  const scoreDisplay = document.getElementById('score');
+  const targetScoreDisplay = document.getElementById('target-score');
+  const messageDisplay = document.getElementById('message');
+  const restartBtn = document.getElementById('restart-btn');
+
+  targetScoreDisplay.textContent = TARGET_SCORE;
+
+  let circles = [];
+  let canvasWidth, canvasHeight, centerX, centerY, radiusUnit;
+
+  function initGame() {
+    score = 0;
+    gameOver = false;
+    scoreDisplay.textContent = score;
+    messageDisplay.style.display = 'none';
+    circles = [];
+    resizeCanvas();
+    createCircles();
+    drawGame();
+  }
 
   function resizeCanvas() {
     canvasWidth = canvas.offsetWidth;
@@ -55,37 +111,89 @@
     canvas.height = canvasHeight;
     centerX = canvasWidth / 2;
     centerY = canvasHeight / 2;
-    radius = Math.min(canvasWidth, canvasHeight) / 4;
-    drawCircle();
+    radiusUnit = Math.min(canvasWidth, canvasHeight) / (NUM_CIRCLES + 2);
   }
 
-  function drawCircle() {
+  window.addEventListener('resize', () => {
+    resizeCanvas();
+    drawGame();
+  });
+
+  function createCircles() {
+    for (let i = 0; i < NUM_CIRCLES; i++) {
+      circles.push({
+        radius: radiusUnit * (i + 1),
+        rotation: 0,
+        numbers: generateNumbers(i),
+      });
+    }
+  }
+
+  function generateNumbers(circleIndex) {
+    const baseNumber = Math.pow(2, circleIndex + 1);
+    let numbers = [];
+    for (let i = 0; i < NUM_SECTIONS; i++) {
+      numbers.push(baseNumber);
+    }
+    return numbers;
+  }
+
+  function drawGame() {
     ctx.clearRect(0, 0, canvasWidth, canvasHeight);
+    for (let i = NUM_CIRCLES - 1; i >= 0; i--) {
+      drawCircle(circles[i]);
+    }
+  }
+
+  function drawCircle(circle) {
+    // Draw Circle
     ctx.save();
     ctx.translate(centerX, centerY);
-    ctx.rotate(rotation);
-
-    // Draw Circle
+    ctx.rotate(circle.rotation);
     ctx.beginPath();
-    ctx.arc(0, 0, radius, 0, 2 * Math.PI);
+    ctx.arc(0, 0, circle.radius, 0, 2 * Math.PI);
     ctx.strokeStyle = '#61dafb';
-    ctx.lineWidth = 10;
+    ctx.lineWidth = radiusUnit * 0.05;
     ctx.stroke();
 
-    // Draw a line to show rotation
-    ctx.beginPath();
-    ctx.moveTo(0, 0);
-    ctx.lineTo(radius, 0);
-    ctx.strokeStyle = '#ff0000';
-    ctx.lineWidth = 5;
-    ctx.stroke();
-
+    // Draw Numbers
+    for (let i = 0; i < NUM_SECTIONS; i++) {
+      const angle = (2 * Math.PI / NUM_SECTIONS) * i;
+      const x = (circle.radius - radiusUnit * 0.3) * Math.cos(angle);
+      const y = (circle.radius - radiusUnit * 0.3) * Math.sin(angle);
+      ctx.save();
+      ctx.translate(x, y);
+      ctx.rotate(-circle.rotation - angle);
+      ctx.fillStyle = '#fff';
+      ctx.font = `${radiusUnit * 0.5}px Arial`;
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      const number = circle.numbers[i];
+      if (number > 0) {
+        ctx.fillText(number, 0, 0);
+      }
+      ctx.restore();
+    }
     ctx.restore();
   }
 
-  function rotateCircle() {
-    rotation += Math.PI / 6; // Rotate by 30 degrees
-    drawCircle();
+  function getCircleAtPosition(x, y) {
+    const dx = x - centerX;
+    const dy = y - centerY;
+    const distance = Math.sqrt(dx * dx + dy * dy);
+    for (let i = NUM_CIRCLES - 1; i >= 0; i--) {
+      if (distance <= circles[i].radius + radiusUnit * 0.3 && distance >= circles[i].radius - radiusUnit * 0.3) {
+        return circles[i];
+      }
+    }
+    return null;
+  }
+
+  function rotateCircle(circle) {
+    if (gameOver) return;
+    circle.rotation = (circle.rotation + (2 * Math.PI / NUM_SECTIONS)) % (2 * Math.PI);
+    drawGame();
+    checkForMerges();
   }
 
   // Touch handling
@@ -99,49 +207,95 @@
     const touch = event.changedTouches[0];
     const x = (touch.clientX - rect.left) * (canvas.width / rect.width);
     const y = (touch.clientY - rect.top) * (canvas.height / rect.height);
-
-    const dx = x - centerX;
-    const dy = y - centerY;
-    const distance = Math.sqrt(dx * dx + dy * dy);
-
-    // Log touch position and distance to center
-    console.log(`Touch at (${x.toFixed(2)}, ${y.toFixed(2)}), distance from center: ${distance.toFixed(2)}`);
-
-    // Update debug info
-    const debugInfo = document.getElementById('debug-info');
-    debugInfo.textContent = `Touch at (${x.toFixed(2)}, ${y.toFixed(2)}), distance from center: ${distance.toFixed(2)}`;
-
-    if (distance <= radius) {
-      rotateCircle();
+    const circle = getCircleAtPosition(x, y);
+    if (circle) {
+      rotateCircle(circle);
     }
   }, { passive: false });
 
-  // Mouse handling for desktop testing
+  // Mouse handling
   canvas.addEventListener('click', (event) => {
     const rect = canvas.getBoundingClientRect();
     const x = (event.clientX - rect.left) * (canvas.width / rect.width);
     const y = (event.clientY - rect.top) * (canvas.height / rect.height);
-
-    const dx = x - centerX;
-    const dy = y - centerY;
-    const distance = Math.sqrt(dx * dx + dy * dy);
-
-    console.log(`Click at (${x.toFixed(2)}, ${y.toFixed(2)}), distance from center: ${distance.toFixed(2)}`);
-
-    const debugInfo = document.getElementById('debug-info');
-    debugInfo.textContent = `Click at (${x.toFixed(2)}, ${y.toFixed(2)}), distance from center: ${distance.toFixed(2)}`;
-
-    if (distance <= radius) {
-      rotateCircle();
+    const circle = getCircleAtPosition(x, y);
+    if (circle) {
+      rotateCircle(circle);
     }
   });
 
-  window.addEventListener('resize', resizeCanvas);
+  function checkForMerges() {
+    let merged = false;
+    for (let i = 0; i < NUM_SECTIONS; i++) {
+      for (let j = NUM_CIRCLES - 1; j > 0; j--) {
+        const circleOuter = circles[j];
+        const circleInner = circles[j - 1];
+        const indexOuter = (i - Math.round(circleOuter.rotation / (2 * Math.PI / NUM_SECTIONS)) + NUM_SECTIONS) % NUM_SECTIONS;
+        const indexInner = (i - Math.round(circleInner.rotation / (2 * Math.PI / NUM_SECTIONS)) + NUM_SECTIONS) % NUM_SECTIONS;
+        const numberOuter = circleOuter.numbers[indexOuter];
+        const numberInner = circleInner.numbers[indexInner];
+        if (numberOuter > 0 && numberOuter === numberInner) {
+          merged = true;
+          const sum = numberOuter + numberInner;
+          circleInner.numbers[indexInner] = sum;
+          circleOuter.numbers[indexOuter] = 0;
+          score += sum;
+          scoreDisplay.textContent = score;
+          // Visual feedback
+          drawMergeEffect();
+        }
+      }
+    }
+    if (merged) {
+      drawGame();
+      if (score >= TARGET_SCORE) {
+        gameOver = true;
+        messageDisplay.textContent = 'Victory!';
+        messageDisplay.style.display = 'block';
+      }
+    } else {
+      if (!hasPossibleMoves()) {
+        gameOver = true;
+        messageDisplay.textContent = 'Try Again!';
+        messageDisplay.style.display = 'block';
+      }
+    }
+  }
+
+  function drawMergeEffect() {
+    ctx.fillStyle = 'rgba(255, 255, 255, 0.2)';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    setTimeout(() => {
+      drawGame();
+    }, 100);
+  }
+
+  function hasPossibleMoves() {
+    for (let i = 0; i < NUM_SECTIONS; i++) {
+      for (let j = NUM_CIRCLES - 1; j > 0; j--) {
+        const circleOuter = circles[j];
+        const circleInner = circles[j - 1];
+        const indexOuter = (i - Math.round(circleOuter.rotation / (2 * Math.PI / NUM_SECTIONS)) + NUM_SECTIONS) % NUM_SECTIONS;
+        const indexInner = (i - Math.round(circleInner.rotation / (2 * Math.PI / NUM_SECTIONS)) + NUM_SECTIONS) % NUM_SECTIONS;
+        const numberOuter = circleOuter.numbers[indexOuter];
+        const numberInner = circleInner.numbers[indexInner];
+        if (numberOuter > 0 && numberOuter === numberInner) {
+          return true;
+        }
+      }
+    }
+    return false;
+  }
+
+  restartBtn.addEventListener('click', () => {
+    initGame();
+  });
 
   // Initialize the game on page load
   window.addEventListener('load', () => {
-    resizeCanvas();
+    initGame();
   });
+
 </script>
 
 </body>
