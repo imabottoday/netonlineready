@@ -90,7 +90,7 @@
 
 <script>
   // Game Constants
-  const NUM_CIRCLES = 4; // Start with multiple circles
+  const NUM_CIRCLES = 4; // Reintroducing multiple circles
   const NUM_SECTIONS = 6;
   const TARGET_SCORE = 500;
   
@@ -227,11 +227,10 @@
   // Detect Circle Selection Based on Touch or Click Position
   function getCircleAtPosition(x, y) {
     const dx = x - centerX;
-    const dy = const dy = y - centerY;
+    const dy = y - centerY;
     const distance = Math.sqrt(dx * dx + dy * dy);
     logDebug(`Touch Position: (${x.toFixed(2)}, ${y.toFixed(2)}), Distance from Center: ${distance.toFixed(2)}`);
     console.log(`Touch Position: (${x.toFixed(2)}, ${y.toFixed(2)}), Distance from Center: ${distance.toFixed(2)}`);
-    
     for (let i = NUM_CIRCLES - 1; i >= 0; i--) {
       if (distance <= circles[i].radius + radiusUnit * 0.3 && distance >= circles[i].radius - radiusUnit * 0.3) {
         logDebug(`Circle ${i} Selected`);
@@ -243,10 +242,10 @@
     console.log('No Circle Selected');
     return null;
   }
-
+  
   // Rotate the Selected Circle
   function rotateCircle(circle) {
-    if (gameOver) {
+    if (gameOver {
       logDebug('Game Over. Rotation Disabled.');
       console.log('Game Over. Rotation Disabled.');
       return;
@@ -255,7 +254,8 @@
     logDebug(`Circle Rotated to ${circle.rotation.toFixed(2)} radians`);
     console.log('Circle Rotated:', circle);
     drawGame();
-    checkForMerges();  // Reintroduce merge checking after each rotation
+    // Uncomment the following line when merge logic is implemented
+    // checkForMerges();
   }
 
   // Touch Event Handling
@@ -287,65 +287,6 @@
       rotateCircle(circle);
     }
   });
-
-  // Function to Check for Merges After Rotation
-  function checkForMerges() {
-    let merged = false;
-    
-    for (let i = 0; i < NUM_SECTIONS; i++) {
-      for (let j = NUM_CIRCLES - 1; j > 0; j--) {
-        const circleOuter = circles[j];
-        const circleInner = circles[j - 1];
-        const indexOuter = (i - Math.round(circleOuter.rotation / (2 * Math.PI / NUM_SECTIONS)) + NUM_SECTIONS) % NUM_SECTIONS;
-        const indexInner = (i - Math.round(circleInner.rotation / (2 * Math.PI / NUM_SECTIONS)) + NUM_SECTIONS) % NUM_SECTIONS;
-        const numberOuter = circleOuter.numbers[indexOuter];
-        const numberInner = circleInner.numbers[indexInner];
-        
-        if (numberOuter > 0 && numberOuter === numberInner) {
-          merged = true;
-          const sum = numberOuter + numberInner;
-          circleInner.numbers[indexInner] = sum;
-          circleOuter.numbers[indexOuter] = 0;
-          score += sum;
-          scoreDisplay.textContent = score;
-          logDebug(`Merged numbers: ${numberOuter} + ${numberInner} = ${sum}`);
-          console.log(`Merged numbers: ${numberOuter} + ${numberInner} = ${sum}`);
-        }
-      }
-    }
-    
-    if (merged) {
-      drawGame();
-      if (score >= TARGET_SCORE) {
-        gameOver = true;
-        messageDisplay.textContent = 'Victory!';
-        messageDisplay.style.display = 'block';
-      }
-    } else if (!hasPossibleMoves()) {
-      gameOver = true;
-      messageDisplay.textContent = 'No more moves!';
-      messageDisplay.style.display = 'block';
-    }
-  }
-
-  // Function to Check if Any Moves Are Possible
-  function hasPossibleMoves() {
-    for (let i = 0; i < NUM_SECTIONS; i++) {
-      for (let j = NUM_CIRCLES - 1; j > 0; j--) {
-        const circleOuter = circles[j];
-        const circleInner = circles[j - 1];
-        const indexOuter = (i - Math.round(circleOuter.rotation / (2 * Math.PI / NUM_SECTIONS)) + NUM_SECTIONS) % NUM_SECTIONS;
-        const indexInner = (i - Math.round(circleInner.rotation / (2 * Math.PI / NUM_SECTIONS)) + NUM_SECTIONS) % NUM_SECTIONS;
-        const numberOuter = circleOuter.numbers[indexOuter];
-        const numberInner = circleInner.numbers[indexInner];
-        
-        if (numberOuter > 0 && numberOuter === numberInner) {
-          return true;
-        }
-      }
-    }
-    return false;
-  }
 
   // Restart Button Handling
   restartBtn.addEventListener('click', () => {
