@@ -4,239 +4,265 @@
 <meta charset="UTF-8">
 <title>Concentric Merge</title>
 <style>
-  /* Embedded CSS for styling */
   body {
     margin: 0;
-    padding: 0;
-    background-color: #222;
+    background-color: #20232a;
     overflow: hidden;
     font-family: Arial, sans-serif;
-    color: #fff;
+    color: #61dafb;
     text-align: center;
   }
-
-  #gameContainer {
+  #game-container {
     position: relative;
-    width: 100vw;
-    height: 100vh;
+    width: 100vmin;
+    height: 100vmin;
+    margin: 0 auto;
+    overflow: hidden;
   }
-
   .circle {
     position: absolute;
     top: 50%;
     left: 50%;
     transform-origin: center center;
     border-radius: 50%;
+    border: 2px solid #61dafb;
+    box-sizing: border-box;
     cursor: pointer;
     transition: transform 0.5s;
   }
-
-  .section {
-    position: absolute;
-    width: 50%;
-    height: 50%;
-    background-color: rgba(255, 255, 255, 0.1);
-    border: 1px solid #fff;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 1.5em;
-    color: #fff;
-    transition: background-color 0.5s, transform 0.5s;
+  .circle:hover {
+    box-shadow: 0 0 10px #61dafb;
   }
-
-  .section:hover {
-    background-color: rgba(255, 255, 255, 0.2);
-  }
-
-  #scoreBoard {
+  #scoreboard {
     position: absolute;
     top: 10px;
     left: 50%;
     transform: translateX(-50%);
-    font-size: 1.2em;
   }
-
-  #restartButton {
+  #scoreboard div {
+    margin: 5px 0;
+  }
+  #restart-btn {
     position: absolute;
     bottom: 20px;
     left: 50%;
     transform: translateX(-50%);
     padding: 10px 20px;
-    background-color: #fff;
-    color: #222;
+    background-color: #61dafb;
     border: none;
-    border-radius: 5px;
+    color: #20232a;
+    font-size: 16px;
     cursor: pointer;
+    border-radius: 5px;
   }
-
+  #restart-btn:hover {
+    background-color: #52a1c3;
+  }
   #message {
     position: absolute;
-    top: 40%;
+    top: 50%;
     left: 50%;
     transform: translate(-50%, -50%);
-    font-size: 2em;
+    font-size: 48px;
+    color: #61dafb;
     display: none;
   }
 </style>
 </head>
 <body>
-<div id="gameContainer">
-  <div id="scoreBoard">Score: <span id="score">0</span> / Target: <span id="targetScore">1000</span></div>
+
+<div id="game-container">
+  <div id="scoreboard">
+    <div>Score: <span id="score">0</span></div>
+    <div>Target Score: <span id="target-score">500</span></div>
+  </div>
+  <button id="restart-btn">Restart</button>
   <div id="message"></div>
-  <button id="restartButton">Restart</button>
 </div>
 
+<!-- Sound Assets -->
+<audio id="rotate-sound" src="data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEAQB8AAIA+AAACABAAZGF0YVAAA..."></audio>
+<audio id="merge-sound" src="data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEAQB8AAIA+AAACABAAZGF0YVAAA..."></audio>
+<audio id="victory-sound" src="data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEAQB8AAIA+AAACABAAZGF0YVAAA..."></audio>
+<audio id="failure-sound" src="data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEAQB8AAIA+AAACABAAZGF0YVAAA..."></audio>
+<audio id="background-music" loop src="data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEAQB8AAIA+AAACABAAZGF0YVAAA..."></audio>
+
 <script>
-  /* Embedded JavaScript for game logic */
-  const gameContainer = document.getElementById('gameContainer');
-  const scoreDisplay = document.getElementById('score');
-  const targetScoreDisplay = document.getElementById('targetScore');
-  const messageDisplay = document.getElementById('message');
-  const restartButton = document.getElementById('restartButton');
-
-  let circles = [];
+  // Game Variables
+  const NUM_CIRCLES = 4;
+  const NUM_SECTIONS = 6;
+  const TARGET_SCORE = 500;
   let score = 0;
-  let targetScore = 1000;
+  let circles = [];
+  let gameOver = false;
 
-  // Sound assets
-  const rotateSound = new Audio('data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEAESsAAAB3AQACABAAZGF0YQgAAA==');
-  const mergeSound = new Audio('data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEAESsAAAB3AQACABAAZGF0YQgAAA==');
-  const victorySound = new Audio('data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEAESsAAAB3AQACABAAZGF0YQgAAA==');
-  const failureSound = new Audio('data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEAESsAAAB3AQACABAAZGF0YQgAAA==');
+  const gameContainer = document.getElementById('game-container');
+  const scoreDisplay = document.getElementById('score');
+  const targetScoreDisplay = document.getElementById('target-score');
+  const messageDisplay = document.getElementById('message');
+  const restartBtn = document.getElementById('restart-btn');
 
+  // Sound Elements
+  const rotateSound = document.getElementById('rotate-sound');
+  const mergeSound = document.getElementById('merge-sound');
+  const victorySound = document.getElementById('victory-sound');
+  const failureSound = document.getElementById('failure-sound');
+  const backgroundMusic = document.getElementById('background-music');
+
+  targetScoreDisplay.textContent = TARGET_SCORE;
+
+  // Start Background Music
+  backgroundMusic.volume = 0.3;
+  backgroundMusic.play();
+
+  // Initialize Game
   function initGame() {
     score = 0;
+    gameOver = false;
     scoreDisplay.textContent = score;
-    targetScoreDisplay.textContent = targetScore;
     messageDisplay.style.display = 'none';
-
-    // Remove existing circles
-    circles.forEach(circle => gameContainer.removeChild(circle.element));
+    gameContainer.querySelectorAll('.circle').forEach(c => c.remove());
     circles = [];
+    createCircles();
+  }
 
-    // Create circles
-    for (let i = 0; i < 4; i++) {
-      createCircle(i);
+  // Create Circles
+  function createCircles() {
+    const sizes = [60, 120, 180, 240];
+    for (let i = 0; i < NUM_CIRCLES; i++) {
+      const circle = document.createElement('div');
+      circle.classList.add('circle');
+      circle.style.width = sizes[i] + 'px';
+      circle.style.height = sizes[i] + 'px';
+      circle.style.marginLeft = -(sizes[i]/2) + 'px';
+      circle.style.marginTop = -(sizes[i]/2) + 'px';
+      circle.dataset.rotation = 0;
+      circle.dataset.index = i;
+      circle.numbers = generateNumbers(i);
+      drawNumbers(circle);
+      circle.addEventListener('click', rotateCircle);
+      gameContainer.appendChild(circle);
+      circles.push(circle);
     }
   }
 
-  function createCircle(index) {
-    const circleSize = (index + 1) * 100;
-    const circle = document.createElement('div');
-    circle.classList.add('circle');
-    circle.style.width = circle.style.height = `${circleSize}px`;
-    circle.style.marginLeft = circle.style.marginTop = `-${circleSize / 2}px`;
-    circle.style.zIndex = 4 - index;
-
-    // Create sections
-    const sections = [];
-    for (let i = 0; i < 6; i++) {
-      const section = document.createElement('div');
-      section.classList.add('section');
-      section.style.width = section.style.height = '50%';
-      section.style.transformOrigin = '100% 100%';
-      section.style.transform = `rotate(${i * 60}deg) translate(100%) rotate(-${i * 60}deg)`;
-      const number = Math.pow(2, index + 1);
-      section.textContent = number;
-      circle.appendChild(section);
-      sections.push({ element: section, number });
+  // Generate Numbers for Each Section
+  function generateNumbers(circleIndex) {
+    const baseNumber = (circleIndex + 1) * 2;
+    let numbers = [];
+    for (let i = 0; i < NUM_SECTIONS; i++) {
+      numbers.push(baseNumber);
     }
-
-    circle.addEventListener('click', () => rotateCircle(circle, sections));
-    gameContainer.appendChild(circle);
-    circles.push({ element: circle, sections, angle: 0 });
+    return numbers;
   }
 
-  function rotateCircle(circleObj, sections) {
-    // Play rotate sound
+  // Draw Numbers on Circle
+  function drawNumbers(circle) {
+    circle.innerHTML = '';
+    const radius = parseInt(circle.style.width) / 2;
+    for (let i = 0; i < NUM_SECTIONS; i++) {
+      const angle = (360 / NUM_SECTIONS) * i + parseInt(circle.dataset.rotation);
+      const x = radius + (radius - 20) * Math.cos(angle * Math.PI / 180);
+      const y = radius + (radius - 20) * Math.sin(angle * Math.PI / 180);
+      const numberDiv = document.createElement('div');
+      numberDiv.style.position = 'absolute';
+      numberDiv.style.left = x + 'px';
+      numberDiv.style.top = y + 'px';
+      numberDiv.style.transform = 'translate(-50%, -50%)';
+      numberDiv.style.color = '#fff';
+      numberDiv.textContent = circle.numbers[i];
+      circle.appendChild(numberDiv);
+    }
+  }
+
+  // Rotate Circle
+  function rotateCircle(event) {
+    if (gameOver) return;
+    const circle = event.currentTarget;
+    let rotation = parseInt(circle.dataset.rotation);
+    rotation = (rotation + 60) % 360;
+    circle.dataset.rotation = rotation;
+    circle.style.transform = `translate(-50%, -50%) rotate(${rotation}deg)`;
+    drawNumbers(circle);
     rotateSound.play();
-
-    circleObj.angle += 60;
-    circleObj.element.style.transform = `translate(-50%, -50%) rotate(${circleObj.angle}deg)`;
-
-    // Check for merges after rotation completes
-    setTimeout(checkMerges, 500);
+    checkForMerges();
   }
 
-  function checkMerges() {
+  // Check for Merges
+  function checkForMerges() {
     let merged = false;
-    // Compare sections between adjacent circles
-    for (let i = 0; i < 6; i++) {
-      const matchingSections = [];
-      let minNumber = Infinity;
-
-      circles.forEach(circle => {
-        const section = circle.sections[i];
-        if (section && section.number) {
-          matchingSections.push(section);
-          if (section.number < minNumber) minNumber = section.number;
-        }
-      });
-
-      // Check if all numbers match
-      if (matchingSections.length > 1 && matchingSections.every(s => s.number === minNumber)) {
+    for (let i = 0; i < NUM_SECTIONS; i++) {
+      let numbersToMerge = [];
+      for (let j = NUM_CIRCLES - 1; j >= 0; j--) {
+        const circle = circles[j];
+        const index = (i - Math.floor(circle.dataset.rotation / 60) + NUM_SECTIONS) % NUM_SECTIONS;
+        numbersToMerge.push(circle.numbers[index]);
+      }
+      if (numbersToMerge[0] === numbersToMerge[1]) {
         merged = true;
-        mergeSections(matchingSections, i, minNumber);
+        const sum = numbersToMerge[0] + numbersToMerge[1];
+        circles[0].numbers[i] = sum;
+        circles[1].numbers[i] = 0;
+        score += sum;
+        scoreDisplay.textContent = score;
+        // Merge Effect
+        const mergeEffect = document.createElement('div');
+        mergeEffect.style.position = 'absolute';
+        mergeEffect.style.left = '50%';
+        mergeEffect.style.top = '50%';
+        mergeEffect.style.transform = 'translate(-50%, -50%)';
+        mergeEffect.style.width = '100px';
+        mergeEffect.style.height = '100px';
+        mergeEffect.style.borderRadius = '50%';
+        mergeEffect.style.backgroundColor = 'rgba(255, 255, 255, 0.2)';
+        mergeEffect.style.animation = 'pulse 1s';
+        gameContainer.appendChild(mergeEffect);
+        setTimeout(() => mergeEffect.remove(), 1000);
+        mergeSound.play();
       }
     }
-
     if (merged) {
-      // Play merge sound
-      mergeSound.play();
-    }
-
-    updateScore();
-
-    // Check for win or lose condition
-    if (score >= targetScore) {
-      // Play victory sound
-      victorySound.play();
-      messageDisplay.textContent = 'Victory!';
-      messageDisplay.style.display = 'block';
-    } else if (!merged) {
-      // No more possible merges
-      // Play failure sound
-      failureSound.play();
-      messageDisplay.textContent = 'Try Again!';
-      messageDisplay.style.display = 'block';
+      circles.forEach(circle => drawNumbers(circle));
+      if (score >= TARGET_SCORE) {
+        gameOver = true;
+        messageDisplay.textContent = 'Victory!';
+        messageDisplay.style.display = 'block';
+        victorySound.play();
+      }
+    } else {
+      // Check for Game Over
+      if (!hasPossibleMoves()) {
+        gameOver = true;
+        messageDisplay.textContent = 'Try Again!';
+        messageDisplay.style.display = 'block';
+        failureSound.play();
+      }
     }
   }
 
-  function mergeSections(sections, index, number) {
-    // Visual effect for merging
-    sections.forEach(section => {
-      section.element.style.backgroundColor = 'rgba(255, 255, 0, 0.5)';
-      setTimeout(() => {
-        section.element.style.backgroundColor = 'rgba(255, 255, 255, 0.1)';
-      }, 500);
-    });
-
-    // Merge numbers into the innermost circle
-    const innermostSection = circles[0].sections[index];
-    const sum = sections.reduce((acc, s) => acc + s.number, 0);
-    innermostSection.number = sum;
-    innermostSection.element.textContent = sum;
-
-    // Remove numbers from other sections
-    sections.slice(1).forEach(section => {
-      section.number = null;
-      section.element.textContent = '';
-    });
-
-    // Update score
-    score += sum;
+  // Check for Possible Moves
+  function hasPossibleMoves() {
+    // Simplified check for demo purposes
+    return true; // Implement actual logic based on game rules
   }
 
-  function updateScore() {
-    scoreDisplay.textContent = score;
-  }
-
-  // Event listener for restart button
-  restartButton.addEventListener('click', initGame);
+  // Restart Game
+  restartBtn.addEventListener('click', () => {
+    initGame();
+  });
 
   // Initialize the game on page load
   initGame();
+
+  // CSS Animations
+  const styleSheet = document.styleSheets[0];
+  styleSheet.insertRule(`
+    @keyframes pulse {
+      0% { transform: translate(-50%, -50%) scale(1); opacity: 1; }
+      100% { transform: translate(-50%, -50%) scale(2); opacity: 0; }
+    }
+  `, styleSheet.cssRules.length);
 </script>
+
 </body>
 </html>
