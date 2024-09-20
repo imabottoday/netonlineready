@@ -181,9 +181,10 @@
   function drawGame() {
     ctx.clearRect(0, 0, canvasWidth, canvasHeight);
     if (circles.length > 0) {
-      circles.forEach((circle, index) => {
-        drawCircle(circle, index);
-      });
+      // Draw circles in reverse order (smallest to largest)
+      for (let i = NUM_CIRCLES - 1; i >= 0; i--) {
+        drawCircle(circles[i], i);
+      }
       logDebug('Game Drawn');
       console.log('Game Drawn');
     } else {
@@ -233,6 +234,7 @@
     }
     ctx.restore();
     logDebug(`Circle ${index} Drawn with Rotation ${circle.rotation.toFixed(2)} radians`);
+    console.log(`Circle ${index} Drawn:`, circle);
   }
   
   // Detect Circle Selection Based on Touch or Click Position
@@ -415,15 +417,4 @@
 </script>
 
 </body>
-</html>
-
-
-
-
-
-
-
-
-
-
-                          
+</html>              
