@@ -156,7 +156,7 @@
       const circle = {
         radius: radiusUnit * (i + 1),
         rotation: 0,
-        numbers: generateOrderedNumbers(i),
+        numbers: generateRandomNumbers(i),
         color: colors[i]
       };
       circles.push(circle);
@@ -165,15 +165,15 @@
     }
   }
   
-  // Generate Ordered Numbers for Each Circle
-  function generateOrderedNumbers(circleIndex) {
+  // Generate Random Numbers for Each Circle
+  function generateRandomNumbers(circleIndex) {
     const baseNumber = Math.pow(2, circleIndex + 1);
     let numbers = [];
     for (let i = 0; i < NUM_SECTIONS; i++) {
-      numbers.push(baseNumber + (i % 2 === 0 ? 0 : 2)); // Alternate between base and base+2
+      numbers.push(baseNumber + Math.floor(Math.random() * 3) * 2); // Random number between base and base+4
     }
-    logDebug(`Ordered Numbers Generated for Circle ${circleIndex}: ${numbers.join(', ')}`);
-    console.log(`Ordered Numbers Generated for Circle ${circleIndex}:`, numbers);
+    logDebug(`Random Numbers Generated for Circle ${circleIndex}: ${numbers.join(', ')}`);
+    console.log(`Random Numbers Generated for Circle ${circleIndex}:`, numbers);
     return numbers;
   }
   
@@ -201,20 +201,34 @@
     // Draw Circle
     ctx.beginPath();
     ctx.arc(0, 0, circle.radius, 0, 2 * Math.PI);
-    ctx.strokeStyle = circle.color; // Use the assigned color for each circle
+    ctx.fillStyle = circle.color; // Fill circle with color
+    ctx.fill();
     ctx.lineWidth = radiusUnit * 0.05;
     ctx.stroke();
     
-    // Draw Numbers
+    // Draw Segments
     for (let i = 0; i < NUM_SECTIONS; i++) {
-      const angle = (2 * Math.PI / NUM_SECTIONS) * i;
-      const x = (circle.radius - radiusUnit * 0.3) * Math.cos(angle);
-      const y = (circle.radius - radiusUnit * 0.3) * Math.sin(angle);
+      const startAngle = (2 * Math.PI / NUM_SECTIONS) * i;
+      const endAngle = startAngle + (2 * Math.PI / NUM_SECTIONS);
+      ctx.beginPath();
+      ctx.moveTo(0, 0);
+      ctx.arc(0, 0, circle.radius, startAngle, endAngle);
+      ctx.closePath();
+      ctx.fillStyle = circle.color;
+      ctx.fill();
+      ctx.strokeStyle = '#fff';
+      ctx.lineWidth = 1;
+      ctx.stroke();
+      
+      // Draw Numbers
+      const angle = startAngle + (endAngle - startAngle) / 2;
+      const x = (circle.radius - radiusUnit * 0.5) * Math.cos(angle);
+      const y = (circle.radius - radiusUnit * 0.5) * Math.sin(angle);
       ctx.save();
       ctx.translate(x, y);
       ctx.rotate(-circle.rotation - angle);
       ctx.fillStyle = '#fff';
-      ctx.font = `${radiusUnit * 0.4}px Arial`; // Slightly smaller font size to fit more numbers
+      ctx.font = `${radiusUnit * 0.4}px Arial`;
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
       const number = circle.numbers[i];
@@ -314,16 +328,8 @@
           logDebug(`Merged numbers: ${numberOuter} + ${numberInner} = ${sum}`);
           console.log(`Merged numbers: ${numberOuter} + ${numberInner} = ${sum}`);
           
-          // Add a simple effect for merging
-          ctx.save();
-          ctx.translate(centerX, centerY);
-          ctx.rotate(circleInner.rotation);
-          ctx.beginPath();
-          ctx.arc(0, 0, circleInner.radius, 0, 2 * Math.PI);
-          ctx.strokeStyle = '#fff';
-          ctx.lineWidth = radiusUnit * 0.1;
-          ctx.stroke();
-          ctx.restore();
+          // Add a glare effect for merging
+          drawGlareEffect(circleInner.radius, circleInner.rotation + (indexInner * 2 * Math.PI / NUM_SECTIONS));
         }
       }
     }
@@ -332,9 +338,24 @@
       drawGame();
       respawnNumbers(); // Respawn new numbers after merging
     } else if (!hasPossibleMoves()) {
-      shuffleNumbers(); // Shuffle numbers to keep the game going
+      createCircles(); // Start a new game with random patterns
       drawGame();
     }
+  }
+
+  // Function to Draw Glare Effect
+  function drawGlareEffect(radius, angle) {
+    ctx.save();
+    ctx.translate(centerX, centerY);
+    ctx.rotate(angle);
+    
+    ctx.beginPath();
+    ctx.arc(0, 0, radius, -0.1, 0.1);
+    ctx.lineWidth = radiusUnit * 0.1;
+    ctx.strokeStyle = 'rgba(255, 255, 255, 0.8)';
+    ctx.stroke();
+    
+    ctx.restore();
   }
 
   // Function to Respawn Random Numbers After Merges
@@ -354,19 +375,7 @@
   // Generate Random Number for Respawn
   function generateRandomNumber(circleIndex) {
     const baseNumber = Math.pow(2, circleIndex + 1);
-    return baseNumber + (Math.random() > 0.5 ? 0 : 2); // Randomly choose between base and base+2
-  }
-  
-  // Function to Shuffle Numbers to Keep the Game Going
-  function shuffleNumbers() {
-    circles.forEach(circle => {
-      for (let i = circle.numbers.length - 1; i > 0; i--) {
-        const j = Math.floor(Math.random() * (i + 1));
-        [circle.numbers[i], circle.numbers[j]] = [circle.numbers[j], circle.numbers[i]];
-      }
-    });
-    logDebug('Numbers shuffled to continue the game');
-    console.log('Numbers shuffled to continue the game');
+    return baseNumber + Math.floor(Math.random() * 3) * 2; // Randomly choose between base, base+2, and base+4
   }
   
   // Function to Check if Any Moves Are Possible
@@ -413,4 +422,4 @@
 </script>
 
 </body>
-</html>   
+</html>
