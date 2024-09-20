@@ -192,38 +192,32 @@
     }
   }
   
-  // Draw Individual Circle with Numbers
+  // Draw Individual Circle with Segments
   function drawCircle(circle, index) {
     ctx.save();
     ctx.translate(centerX, centerY);
     ctx.rotate(circle.rotation);
     
-    // Draw Circle
-    ctx.beginPath();
-    ctx.arc(0, 0, circle.radius, 0, 2 * Math.PI);
-    ctx.fillStyle = circle.color; // Fill circle with color
-    ctx.fill();
-    ctx.lineWidth = radiusUnit * 0.05;
-    ctx.stroke();
-    
-    // Draw Segments
+    // Draw Circle Segments
     for (let i = 0; i < NUM_SECTIONS; i++) {
       const startAngle = (2 * Math.PI / NUM_SECTIONS) * i;
       const endAngle = startAngle + (2 * Math.PI / NUM_SECTIONS);
+      
       ctx.beginPath();
       ctx.moveTo(0, 0);
       ctx.arc(0, 0, circle.radius, startAngle, endAngle);
       ctx.closePath();
+      
       ctx.fillStyle = circle.color;
       ctx.fill();
       ctx.strokeStyle = '#fff';
-      ctx.lineWidth = 1;
+      ctx.lineWidth = 2;
       ctx.stroke();
       
-      // Draw Numbers
+      // Draw Numbers in Segments
       const angle = startAngle + (endAngle - startAngle) / 2;
-      const x = (circle.radius - radiusUnit * 0.5) * Math.cos(angle);
-      const y = (circle.radius - radiusUnit * 0.5) * Math.sin(angle);
+      const x = (circle.radius - radiusUnit * 0.3) * Math.cos(angle);
+      const y = (circle.radius - radiusUnit * 0.3) * Math.sin(angle);
       ctx.save();
       ctx.translate(x, y);
       ctx.rotate(-circle.rotation - angle);
@@ -239,7 +233,6 @@
     }
     ctx.restore();
     logDebug(`Circle ${index} Drawn with Rotation ${circle.rotation.toFixed(2)} radians`);
-    console.log(`Circle ${index} Drawn:`, circle);
   }
   
   // Detect Circle Selection Based on Touch or Click Position
@@ -423,3 +416,14 @@
 
 </body>
 </html>
+
+
+
+
+
+
+
+
+
+
+                          
