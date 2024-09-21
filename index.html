@@ -91,7 +91,6 @@
   <canvas id="game-canvas"></canvas>
   <div id="scoreboard">
     <div>Score: <span id="score">0</span></div>
-    <div>Target Score: <span id="target-score">500</span></div>
   </div>
   <button id="restart-btn">Restart</button>
   <div id="message"></div>
@@ -108,7 +107,6 @@
   // Game Constants
   const NUM_CIRCLES = 4;
   const NUM_SECTIONS = 12;
-  const TARGET_SCORE = 500;
 
   // Game Variables
   let score = 0;
@@ -118,7 +116,6 @@
   const canvas = document.getElementById('game-canvas');
   const ctx = canvas.getContext('2d');
   const scoreDisplay = document.getElementById('score');
-  const targetScoreDisplay = document.getElementById('target-score');
   const messageDisplay = document.getElementById('message');
   const restartBtn = document.getElementById('restart-btn');
   const debugInfo = document.getElementById('debug-info');
@@ -129,8 +126,8 @@
   const scoreSound = document.getElementById('score-sound');
   const winSound = document.getElementById('win-sound');
 
-  // Initialize Target Score
-  targetScoreDisplay.textContent = TARGET_SCORE;
+  // Initialize Target Score (Removed)
+  // targetScoreDisplay.textContent = TARGET_SCORE; // Removed
 
   // Circle Data Structure
   let circles = [];
@@ -142,6 +139,9 @@
   // Particle Effects
   let particles = [];
 
+  // Merged Segments Tracking
+  let mergedSegments = [];
+
   // Initialize Game
   function initGame() {
     score = 0;
@@ -150,6 +150,7 @@
     messageDisplay.style.display = 'none';
     circles = [];
     particles = [];
+    mergedSegments = [];
     resizeCanvas();
     createCircles();
     drawGame();
@@ -254,7 +255,10 @@
       ctx.arc(0, 0, circle.radius, startAngle, endAngle);
       ctx.closePath();
 
-      ctx.fillStyle = circle.color;
+      // Check if this segment was recently merged
+      const isMerged = mergedSegments.some(seg => seg.circleIndex === index && seg.segmentIndex === i);
+
+      ctx.fillStyle = isMerged ? '#FFD700' : circle.color; // Highlight merged segments with gold color
       ctx.fill();
       ctx.strokeStyle = '#fff';
       ctx.lineWidth = 2;
@@ -290,7 +294,8 @@
     const distance = Math.sqrt(dx * dx + dy * dy);
     logDebug(`Touch Position: (${x.toFixed(2)}, ${y.toFixed(2)}), Distance from Center: ${distance.toFixed(2)}`);
     for (let i = NUM_CIRCLES - 1; i >= 0; i--) {
-      if (distance <= circles[i].radius + radiusUnit * 0.3 && distance >= circles[i].radius - radiusUnit * 0.3) {
+      // Increased touch area by expanding the buffer
+      if (distance <= circles[i].radius + radiusUnit * 0.6 && distance >= circles[i].radius - radiusUnit * 0.6) {
         logDebug(`Circle ${i} Selected`);
         console.log(`Circle ${i} Selected:`, circles[i]);
         return circles[i];
@@ -411,6 +416,7 @@
           scoreDisplay.textContent = score;
           playSound(mergeSound);
           createParticles(circleInner.radius, indexInner, circleInner.rotation);
+          addMergedSegment(j - 1, indexInner);
           logDebug(`Merged numbers: ${numberOuter} + ${numberInner} = ${sum}`);
           console.log(`Merged numbers: ${numberOuter} + ${numberInner} = ${sum}`);
         }
@@ -421,40 +427,38 @@
       playSound(scoreSound);
       drawGame();
       respawnNumbers(); // Respawn new numbers after merging
-      checkForTarget(); // Check if target score is reached
     } else if (!hasPossibleMoves()) {
       createCircles(); // Start a new game with random patterns
       drawGame();
     }
   }
 
-  // Function to Check if Target Score is Reached
-  function checkForTarget() {
-    if (score >= TARGET_SCORE && !gameOver) {
-      gameOver = true;
-      messageDisplay.textContent = 'You Win!';
-      messageDisplay.style.display = 'block';
-      playSound(winSound);
-      createWinParticles();
-      logDebug('Target Score Reached');
-      console.log('Target Score Reached');
-    }
+  // Function to Add Merged Segment to Highlight
+  function addMergedSegment(circleIndex, segmentIndex) {
+    const currentTime = Date.now();
+    mergedSegments.push({ circleIndex, segmentIndex, time: currentTime });
   }
 
-  // Function to Draw Glare Effect
-  function drawGlareEffect(radius, angle) {
-    ctx.save();
-    ctx.translate(centerX, centerY);
-    ctx.rotate(angle);
-
-    ctx.beginPath();
-    ctx.arc(0, 0, radius, -0.1, 0.1);
-    ctx.lineWidth = radiusUnit * 0.1;
-    ctx.strokeStyle = 'rgba(255, 255, 255, 0.8)';
-    ctx.stroke();
-
-    ctx.restore();
+  // Function to Remove Old Merged Segments
+  function updateMergedSegments() {
+    const currentTime = Date.now();
+    mergedSegments = mergedSegments.filter(seg => currentTime - seg.time < 500); // Highlight for 500ms
   }
+
+  // Function to Draw Glare Effect (Removed as not needed)
+  // function drawGlareEffect(radius, angle) {
+  //   ctx.save();
+  //   ctx.translate(centerX, centerY);
+  //   ctx.rotate(angle);
+
+  //   ctx.beginPath();
+  //   ctx.arc(0, 0, radius, -0.1, 0.1);
+  //   ctx.lineWidth = radiusUnit * 0.1;
+  //   ctx.strokeStyle = 'rgba(255, 255, 255, 0.8)';
+  //   ctx.stroke();
+
+  //   ctx.restore();
+  // }
 
   // Function to Respawn Random Numbers After Merges
   function respawnNumbers() {
@@ -545,23 +549,23 @@
     }
   }
 
-  // Particle Creation for Win
-  function createWinParticles() {
-    for (let i = 0; i < 100; i++) {
-      const angle = Math.random() * 2 * Math.PI;
-      const speed = Math.random() * 5 + 2;
-      const particle = {
-        x: centerX,
-        y: centerY,
-        size: Math.random() * 5 + 2,
-        speedX: Math.cos(angle) * speed,
-        speedY: Math.sin(angle) * speed,
-        opacity: 1,
-        color: '#FFD700' // Gold color for win
-      };
-      particles.push(particle);
-    }
-  }
+  // Particle Creation for Win (Removed as game is indefinite)
+  // function createWinParticles() {
+  //   for (let i = 0; i < 100; i++) {
+  //     const angle = Math.random() * 2 * Math.PI;
+  //     const speed = Math.random() * 5 + 2;
+  //     const particle = {
+  //       x: centerX,
+  //       y: centerY,
+  //       size: Math.random() * 5 + 2,
+  //       speedX: Math.cos(angle) * speed,
+  //       speedY: Math.sin(angle) * speed,
+  //       opacity: 1,
+  //       color: '#FFD700' // Gold color for win
+  //     };
+  //     particles.push(particle);
+  //   }
+  // }
 
   // Function to Draw Particles
   function drawParticles() {
@@ -584,6 +588,21 @@
         particles.splice(index, 1);
       }
     });
+
+    // Update merged segments
+    updateMergedSegments();
+  }
+
+  // Function to Add Merged Segment to Highlight
+  function addMergedSegment(circleIndex, segmentIndex) {
+    const currentTime = Date.now();
+    mergedSegments.push({ circleIndex, segmentIndex, time: currentTime });
+  }
+
+  // Function to Remove Old Merged Segments
+  function updateMergedSegments() {
+    const currentTime = Date.now();
+    mergedSegments = mergedSegments.filter(seg => currentTime - seg.time < 500); // Highlight for 500ms
   }
 
   // Animation Loop for Particles
@@ -598,3 +617,4 @@
 
 </body>
 </html>
+
