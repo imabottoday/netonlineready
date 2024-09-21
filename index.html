@@ -5,18 +5,17 @@
 <title>Concentric Merge Game - Enhanced</title>
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <style>
-  /* Base styling */
   body {
     margin: 0;
     overflow: hidden;
-    font-family: Arial, sans-serif;
-    background: linear-gradient(135deg, #1e3c72, #2a5298);
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    background: radial-gradient(circle at center, #1e3c72, #2a5298, #1e3c72);
   }
   #game-container {
     position: relative;
     width: 100vw;
     height: 100vh;
-    touch-action: none; /* Prevent default touch behaviors */
+    touch-action: none;
   }
   #game-canvas {
     display: block;
@@ -25,30 +24,34 @@
   }
   #scoreboard {
     position: absolute;
-    top: 10px;
+    top: 20px;
     left: 50%;
     transform: translateX(-50%);
     font-size: 2em;
-    color: #fff;
+    color: #ffffff;
     z-index: 10;
     text-align: center;
+    text-shadow: 2px 2px 4px #000000;
   }
   #restart-btn {
     position: absolute;
-    bottom: 20px;
+    bottom: 30px;
     left: 50%;
     transform: translateX(-50%);
-    padding: 10px 20px;
+    padding: 12px 24px;
     font-size: 1.5em;
-    background-color: #fff;
+    background-color: #ffffffcc;
     color: #1e3c72;
     border: none;
     cursor: pointer;
-    border-radius: 5px;
+    border-radius: 8px;
     z-index: 10;
+    box-shadow: 0 4px 6px rgba(0,0,0,0.3);
+    transition: background-color 0.3s, transform 0.2s;
   }
   #restart-btn:hover {
-    background-color: #ddd;
+    background-color: #ffffff;
+    transform: scale(1.05);
   }
   #message {
     position: absolute;
@@ -56,32 +59,24 @@
     left: 50%;
     transform: translate(-50%, -50%);
     font-size: 4em;
-    color: #fff;
+    color: #FFD700;
     display: none;
     z-index: 10;
+    text-shadow: 3px 3px 6px #000000;
   }
-  /* Debugging info */
   #debug-info {
     position: absolute;
     top: 10px;
     right: 10px;
-    color: #fff;
+    color: #ffffff;
     z-index: 10;
-    font-size: 0.75em; /* Reduced font size for smaller debug window */
+    font-size: 0.75em;
     background-color: rgba(0,0,0,0.5);
     padding: 5px 10px;
     border-radius: 5px;
     white-space: pre-line;
-    max-height: 50vh; /* Reduced height for the debug window */
+    max-height: 50vh;
     overflow-y: auto;
-  }
-  /* Particle Effects */
-  .particle {
-    position: absolute;
-    border-radius: 50%;
-    pointer-events: none;
-    opacity: 0;
-    transition: opacity 0.5s, transform 1s;
   }
 </style>
 </head>
@@ -104,517 +99,340 @@
 <audio id="win-sound" src="https://freesound.org/data/previews/331/331912_3248244-lq.mp3"></audio>
 
 <script>
-  // Game Constants
-  const NUM_CIRCLES = 4;
-  const NUM_SECTIONS = 12;
-
-  // Game Variables
-  let score = 0;
-  let gameOver = false;
-
-  // DOM Elements
-  const canvas = document.getElementById('game-canvas');
-  const ctx = canvas.getContext('2d');
-  const scoreDisplay = document.getElementById('score');
-  const messageDisplay = document.getElementById('message');
-  const restartBtn = document.getElementById('restart-btn');
-  const debugInfo = document.getElementById('debug-info');
-
-  // Sound Effects
-  const rotateSound = document.getElementById('rotate-sound');
-  const mergeSound = document.getElementById('merge-sound');
-  const scoreSound = document.getElementById('score-sound');
-  const winSound = document.getElementById('win-sound');
-
-  // Initialize Target Score (Removed)
-  // targetScoreDisplay.textContent = TARGET_SCORE; // Removed
-
-  // Circle Data Structure
-  let circles = [];
-  const colors = ['#FF5733', '#33FF57', '#3357FF', '#F333FF']; // Colors for each circle
-
-  // Canvas Dimensions and Calculations
-  let canvasWidth, canvasHeight, centerX, centerY, radiusUnit;
-
-  // Particle Effects
-  let particles = [];
-
-  // Merged Segments Tracking
-  let mergedSegments = [];
-
-  // Initialize Game
-  function initGame() {
-    score = 0;
-    gameOver = false;
-    scoreDisplay.textContent = score;
-    messageDisplay.style.display = 'none';
-    circles = [];
-    particles = [];
-    mergedSegments = [];
-    resizeCanvas();
-    createCircles();
-    drawGame();
-    logDebug('Game Initialized');
-    console.log('Game Initialized');
+const NUM_CIRCLES = 4;
+const NUM_SECTIONS = 12;
+let score = 0;
+let gameOver = false;
+const canvas = document.getElementById('game-canvas');
+const ctx = canvas.getContext('2d');
+const scoreDisplay = document.getElementById('score');
+const messageDisplay = document.getElementById('message');
+const restartBtn = document.getElementById('restart-btn');
+const debugInfo = document.getElementById('debug-info');
+const rotateSound = document.getElementById('rotate-sound');
+const mergeSound = document.getElementById('merge-sound');
+const scoreSound = document.getElementById('score-sound');
+const winSound = document.getElementById('win-sound');
+let circles = [];
+const colors = ['#FF6B6B', '#FFD93D', '#6BCB77', '#4D96FF'];
+let canvasWidth, canvasHeight, centerX, centerY, radiusUnit;
+let particles = [];
+let mergedSegments = [];
+function initGame() {
+  score = 0;
+  gameOver = false;
+  scoreDisplay.textContent = score;
+  messageDisplay.style.display = 'none';
+  circles = [];
+  particles = [];
+  mergedSegments = [];
+  resizeCanvas();
+  createCircles();
+  drawGame();
+  logDebug('Game Initialized');
+}
+function resizeCanvas() {
+  canvasWidth = canvas.offsetWidth;
+  canvasHeight = canvas.offsetHeight;
+  canvas.width = canvasWidth;
+  canvas.height = canvasHeight;
+  centerX = canvasWidth / 2;
+  centerY = canvasHeight / 2;
+  radiusUnit = Math.min(canvasWidth, canvasHeight) / (NUM_CIRCLES + 3);
+  drawGame();
+  logDebug(`Canvas Resized: Width=${canvasWidth}, Height=${canvasHeight}, CenterX=${centerX}, CenterY=${centerY}, RadiusUnit=${radiusUnit}`);
+}
+window.addEventListener('resize', resizeCanvas);
+function createCircles() {
+  for (let i = 0; i < NUM_CIRCLES; i++) {
+    const circle = {
+      radius: radiusUnit * (i + 1.2),
+      rotation: 0,
+      numbers: generateMergeableNumbers(i),
+      color: colors[i]
+    };
+    circles.push(circle);
+    logDebug(`Circle ${i} created with radius ${circle.radius}`);
   }
-
-  // Resize Canvas and Recalculate Dimensions
-  function resizeCanvas() {
-    canvasWidth = canvas.offsetWidth;
-    canvasHeight = canvas.offsetHeight;
-    canvas.width = canvasWidth;
-    canvas.height = canvasHeight;
-    centerX = canvasWidth / 2;
-    centerY = canvasHeight / 2;
-    radiusUnit = Math.min(canvasWidth, canvasHeight) / (NUM_CIRCLES + 2);
-    drawGame();
-    logDebug(`Canvas Resized: Width=${canvasWidth}, Height=${canvasHeight}, CenterX=${centerX}, CenterY=${centerY}, RadiusUnit=${radiusUnit}`);
-    console.log('Canvas Resized:', { canvasWidth, canvasHeight, centerX, centerY, radiusUnit });
-  }
-
-  // Handle Window Resize
-  window.addEventListener('resize', resizeCanvas);
-
-  // Create Circles with Properly Generated Numbers
-  function createCircles() {
-    for (let i = 0; i < NUM_CIRCLES; i++) {
-      const circle = {
-        radius: radiusUnit * (i + 1),
-        rotation: 0,
-        numbers: generateMergeableNumbers(i),
-        color: colors[i]
-      };
-      circles.push(circle);
-      logDebug(`Circle ${i} created with radius ${circle.radius}`);
-      console.log(`Circle ${i} created:`, circle);
-    }
-  }
-
-  // Generate Mergeable Numbers for Each Circle
-  function generateMergeableNumbers(circleIndex) {
-    // Ensure that numbers can be merged by aligning some numbers across circles
-    let numbers = [];
-
-    for (let i = 0; i < NUM_SECTIONS; i++) {
-      if (circleIndex === 0) {
-        // Inner circle: base numbers
-        numbers.push(Math.pow(2, Math.floor(Math.random() * 3) + 1)); // 2,4,8
-      } else {
-        // Outer circles: inherit some numbers from the inner circle to allow merging
-        const inheritChance = 0.3; // 30% chance to inherit from inner circle
-        if (Math.random() < inheritChance && circles[circleIndex - 1]) {
-          const innerNumber = circles[circleIndex - 1].numbers[i];
-          numbers.push(innerNumber); // Inherit for potential merge
-        } else {
-          numbers.push(Math.pow(2, Math.floor(Math.random() * 3) + circleIndex + 1)); // Diverse numbers
-        }
-      }
-    }
-
-    // Shuffle the numbers to randomize their placement
-    for (let i = numbers.length - 1; i > 0; i--) {
-      const j = Math.floor(Math.random() * (i + 1));
-      [numbers[i], numbers[j]] = [numbers[j], numbers[i]];
-    }
-
-    logDebug(`Mergeable Numbers Generated for Circle ${circleIndex}: ${numbers.join(', ')}`);
-    console.log(`Mergeable Numbers Generated for Circle ${circleIndex}:`, numbers);
-    return numbers;
-  }
-
-  // Draw the Entire Game (All Circles)
-  function drawGame() {
-    ctx.clearRect(0, 0, canvasWidth, canvasHeight);
-    if (circles.length > 0) {
-      // Draw circles in reverse order (smallest to largest)
-      for (let i = NUM_CIRCLES - 1; i >= 0; i--) {
-        drawCircle(circles[i], i);
-      }
-      drawParticles();
-      logDebug('Game Drawn');
-      console.log('Game Drawn');
+}
+function generateMergeableNumbers(circleIndex) {
+  let numbers = [];
+  for (let i = 0; i < NUM_SECTIONS; i++) {
+    if (circleIndex === 0) {
+      numbers.push(Math.pow(2, Math.floor(Math.random() * 3) + 1));
     } else {
-      logDebug('No circles to draw');
-      console.log('No circles to draw');
+      const inheritChance = 0.3;
+      if (Math.random() < inheritChance && circles[circleIndex - 1]) {
+        const innerNumber = circles[circleIndex - 1].numbers[i];
+        numbers.push(innerNumber);
+      } else {
+        numbers.push(Math.pow(2, Math.floor(Math.random() * 3) + circleIndex + 1));
+      }
     }
   }
-
-  // Draw Individual Circle with Segments
-  function drawCircle(circle, index) {
+  for (let i = numbers.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [numbers[i], numbers[j]] = [numbers[j], numbers[i]];
+  }
+  logDebug(`Mergeable Numbers Generated for Circle ${circleIndex}: ${numbers.join(', ')}`);
+  return numbers;
+}
+function drawGame() {
+  ctx.clearRect(0, 0, canvasWidth, canvasHeight);
+  if (circles.length > 0) {
+    for (let i = NUM_CIRCLES - 1; i >= 0; i--) {
+      drawCircle(circles[i], i);
+    }
+    drawParticles();
+    logDebug('Game Drawn');
+  }
+}
+function drawCircle(circle, index) {
+  ctx.save();
+  ctx.translate(centerX, centerY);
+  ctx.rotate(circle.rotation);
+  for (let i = 0; i < NUM_SECTIONS; i++) {
+    const startAngle = (2 * Math.PI / NUM_SECTIONS) * i;
+    const endAngle = startAngle + (2 * Math.PI / NUM_SECTIONS);
+    ctx.beginPath();
+    ctx.moveTo(0, 0);
+    ctx.arc(0, 0, circle.radius, startAngle, endAngle);
+    ctx.closePath();
+    const isMerged = mergedSegments.some(seg => seg.circleIndex === index && seg.segmentIndex === i);
+    ctx.fillStyle = isMerged ? '#FFD700' : circle.color;
+    ctx.fill();
+    ctx.strokeStyle = '#ffffff';
+    ctx.lineWidth = 2;
+    ctx.stroke();
+    const angle = startAngle + (endAngle - startAngle) / 2;
+    const x = (circle.radius - radiusUnit * 0.4) * Math.cos(angle);
+    const y = (circle.radius - radiusUnit * 0.4) * Math.sin(angle);
     ctx.save();
-    ctx.translate(centerX, centerY);
-    ctx.rotate(circle.rotation);
-
-    // Draw Circle Segments
-    for (let i = 0; i < NUM_SECTIONS; i++) {
-      const startAngle = (2 * Math.PI / NUM_SECTIONS) * i;
-      const endAngle = startAngle + (2 * Math.PI / NUM_SECTIONS);
-
-      ctx.beginPath();
-      ctx.moveTo(0, 0);
-      ctx.arc(0, 0, circle.radius, startAngle, endAngle);
-      ctx.closePath();
-
-      // Check if this segment was recently merged
-      const isMerged = mergedSegments.some(seg => seg.circleIndex === index && seg.segmentIndex === i);
-
-      ctx.fillStyle = isMerged ? '#FFD700' : circle.color; // Highlight merged segments with gold color
-      ctx.fill();
-      ctx.strokeStyle = '#fff';
-      ctx.lineWidth = 2;
-      ctx.stroke();
-
-      // Draw Numbers in Segments
-      const angle = startAngle + (endAngle - startAngle) / 2;
-      const x = (circle.radius - radiusUnit * 0.3) * Math.cos(angle);
-      const y = (circle.radius - radiusUnit * 0.3) * Math.sin(angle);
-      ctx.save();
-      ctx.translate(x, y);
-      // Keep numbers upright
-      ctx.rotate(-circle.rotation - angle);
-      ctx.fillStyle = '#fff';
-      ctx.font = `${radiusUnit * 0.4}px Arial`;
-      ctx.textAlign = 'center';
-      ctx.textBaseline = 'middle';
-      const number = circle.numbers[i];
-      if (number > 0) {
-        ctx.fillText(number, 0, 0);
-      }
-      ctx.restore();
+    ctx.translate(x, y);
+    ctx.rotate(-circle.rotation - angle);
+    ctx.fillStyle = '#ffffff';
+    ctx.font = `${radiusUnit * 0.35}px 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif`;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    const number = circle.numbers[i];
+    if (number > 0) {
+      ctx.shadowColor = '#000000';
+      ctx.shadowBlur = 4;
+      ctx.shadowOffsetX = 2;
+      ctx.shadowOffsetY = 2;
+      ctx.fillText(number, 0, 0);
     }
     ctx.restore();
-    logDebug(`Circle ${index} Drawn with Rotation ${circle.rotation.toFixed(2)} radians`);
-    console.log(`Circle ${index} Drawn:`, circle);
   }
-
-  // Detect Circle Selection Based on Touch or Click Position
-  function getCircleAtPosition(x, y) {
-    const dx = x - centerX;
-    const dy = y - centerY;
-    const distance = Math.sqrt(dx * dx + dy * dy);
-    logDebug(`Touch Position: (${x.toFixed(2)}, ${y.toFixed(2)}), Distance from Center: ${distance.toFixed(2)}`);
-    for (let i = NUM_CIRCLES - 1; i >= 0; i--) {
-      // Increased touch area by expanding the buffer
-      if (distance <= circles[i].radius + radiusUnit * 0.6 && distance >= circles[i].radius - radiusUnit * 0.6) {
-        logDebug(`Circle ${i} Selected`);
-        console.log(`Circle ${i} Selected:`, circles[i]);
-        return circles[i];
+  ctx.restore();
+}
+function getCircleAtPosition(x, y) {
+  const dx = x - centerX;
+  const dy = y - centerY;
+  const distance = Math.sqrt(dx * dx + dy * dy);
+  logDebug(`Touch Position: (${x.toFixed(2)}, ${y.toFixed(2)}), Distance from Center: ${distance.toFixed(2)}`);
+  for (let i = NUM_CIRCLES - 1; i >= 0; i--) {
+    if (distance <= circles[i].radius + radiusUnit * 0.6 && distance >= circles[i].radius - radiusUnit * 0.6) {
+      logDebug(`Circle ${i} Selected`);
+      return circles[i];
+    }
+  }
+  logDebug('No Circle Selected');
+  return null;
+}
+function rotateCircle(circle, direction = 1) {
+  if (gameOver) return;
+  const rotationStep = (2 * Math.PI / NUM_SECTIONS) * direction;
+  circle.rotation = (circle.rotation + rotationStep) % (2 * Math.PI);
+  playSound(rotateSound);
+  drawGame();
+  checkForMerges();
+}
+let touchStartX = null;
+let touchStartY = null;
+let touchStartTime = null;
+canvas.addEventListener('touchstart', (event) => {
+  event.preventDefault();
+  if (event.touches.length === 1) {
+    const touch = event.touches[0];
+    touchStartX = touch.clientX;
+    touchStartY = touch.clientY;
+    touchStartTime = Date.now();
+    logDebug('Touch Start');
+  }
+}, { passive: false });
+canvas.addEventListener('touchmove', (event) => {
+  event.preventDefault();
+}, { passive: false });
+canvas.addEventListener('touchend', (event) => {
+  event.preventDefault();
+  if (event.changedTouches.length === 1 && touchStartX !== null && touchStartY !== null) {
+    const touch = event.changedTouches[0];
+    const deltaX = touch.clientX - touchStartX;
+    const deltaY = touch.clientY - touchStartY;
+    const elapsedTime = Date.now() - touchStartTime;
+    if (Math.abs(deltaX) > Math.abs(deltaY) && Math.abs(deltaX) > 30 && elapsedTime < 500) {
+      const direction = deltaX > 0 ? 1 : -1;
+      const rect = canvas.getBoundingClientRect();
+      const x = (touch.clientX - rect.left) * (canvas.width / rect.width);
+      const y = (touch.clientY - rect.top) * (canvas.height / rect.height);
+      const circle = getCircleAtPosition(x, y);
+      if (circle) {
+        rotateCircle(circle, direction);
+      }
+    } else {
+      const rect = canvas.getBoundingClientRect();
+      const x = (touch.clientX - rect.left) * (canvas.width / rect.width);
+      const y = (touch.clientY - rect.top) * (canvas.height / rect.height);
+      const circle = getCircleAtPosition(x, y);
+      if (circle) {
+        rotateCircle(circle);
       }
     }
-    logDebug('No Circle Selected');
-    console.log('No Circle Selected');
-    return null;
+    touchStartX = null;
+    touchStartY = null;
+    touchStartTime = null;
+    logDebug('Touch End');
   }
-
-  // Rotate the Selected Circle
-  function rotateCircle(circle, direction = 1) { // direction: 1 for clockwise, -1 for counter-clockwise
-    if (gameOver) {
-      logDebug('Game Over. Rotation Disabled.');
-      console.log('Game Over. Rotation Disabled.');
-      return;
+}, { passive: false });
+canvas.addEventListener('click', (event) => {
+  const rect = canvas.getBoundingClientRect();
+  const x = (event.clientX - rect.left) * (canvas.width / rect.width);
+  const y = (event.clientY - rect.top) * (canvas.height / rect.height);
+  const circle = getCircleAtPosition(x, y);
+  if (circle) {
+    rotateCircle(circle);
+  }
+});
+function checkForMerges() {
+  let merged = false;
+  const segmentsToHighlight = [];
+  for (let i = 0; i < NUM_SECTIONS; i++) {
+    for (let j = NUM_CIRCLES - 1; j > 0; j--) {
+      const circleOuter = circles[j];
+      const circleInner = circles[j - 1];
+      const indexOuter = (i - Math.round(circleOuter.rotation / (2 * Math.PI / NUM_SECTIONS)) + NUM_SECTIONS) % NUM_SECTIONS;
+      const indexInner = (i - Math.round(circleInner.rotation / (2 * Math.PI / NUM_SECTIONS)) + NUM_SECTIONS) % NUM_SECTIONS;
+      const numberOuter = circleOuter.numbers[indexOuter];
+      const numberInner = circleInner.numbers[indexInner];
+      if (numberOuter > 0 && numberOuter === numberInner) {
+        merged = true;
+        const sum = numberOuter + numberInner;
+        circleInner.numbers[indexInner] = sum;
+        circleOuter.numbers[indexOuter] = 0;
+        score += sum;
+        scoreDisplay.textContent = score;
+        playSound(mergeSound);
+        createParticles(circleInner.radius, indexInner, circleInner.rotation);
+        segmentsToHighlight.push({ circleIndex: j - 1, segmentIndex: indexInner });
+        segmentsToHighlight.push({ circleIndex: j, segmentIndex: indexOuter });
+      }
     }
-    const rotationStep = (2 * Math.PI / NUM_SECTIONS) * direction;
-    circle.rotation = (circle.rotation + rotationStep) % (2 * Math.PI);
-    logDebug(`Circle Rotated to ${circle.rotation.toFixed(2)} radians`);
-    console.log('Circle Rotated:', circle);
-    playSound(rotateSound);
+  }
+  if (merged) {
+    playSound(scoreSound);
+    mergedSegments.push(...segmentsToHighlight.map(seg => ({ ...seg, time: Date.now() })));
     drawGame();
-    checkForMerges();  // Check for merges after each rotation
-  }
-
-  // Touch Event Handling
-  let touchStartX = null;
-  let touchStartY = null;
-  let touchStartTime = null;
-
-  canvas.addEventListener('touchstart', (event) => {
-    event.preventDefault();
-    if (event.touches.length === 1) { // Single touch
-      const touch = event.touches[0];
-      touchStartX = touch.clientX;
-      touchStartY = touch.clientY;
-      touchStartTime = Date.now();
-      logDebug('Touch Start');
-      console.log('Touch Start');
-    }
-  }, { passive: false });
-
-  canvas.addEventListener('touchmove', (event) => {
-    event.preventDefault();
-    // Future Enhancement: Implement swipe or drag to rotate circles
-    // Already handling swipe in touchend
-  }, { passive: false });
-
-  canvas.addEventListener('touchend', (event) => {
-    event.preventDefault();
-    if (event.changedTouches.length === 1 && touchStartX !== null && touchStartY !== null) {
-      const touch = event.changedTouches[0];
-      const deltaX = touch.clientX - touchStartX;
-      const deltaY = touch.clientY - touchStartY;
-      const elapsedTime = Date.now() - touchStartTime;
-
-      // Determine swipe direction based on deltaX
-      if (Math.abs(deltaX) > Math.abs(deltaY) && Math.abs(deltaX) > 30 && elapsedTime < 500) {
-        const direction = deltaX > 0 ? 1 : -1; // 1: right swipe (clockwise), -1: left swipe (counter-clockwise)
-        const rect = canvas.getBoundingClientRect();
-        const x = (touch.clientX - rect.left) * (canvas.width / rect.width);
-        const y = (touch.clientY - rect.top) * (canvas.height / rect.height);
-        const circle = getCircleAtPosition(x, y);
-        if (circle) {
-          rotateCircle(circle, direction);
-        }
-      } else {
-        // Treat as a tap if swipe is not significant
-        const rect = canvas.getBoundingClientRect();
-        const x = (touch.clientX - rect.left) * (canvas.width / rect.width);
-        const y = (touch.clientY - rect.top) * (canvas.height / rect.height);
-        const circle = getCircleAtPosition(x, y);
-        if (circle) {
-          rotateCircle(circle); // Default direction (clockwise)
-        }
-      }
-
-      // Reset touch variables
-      touchStartX = null;
-      touchStartY = null;
-      touchStartTime = null;
-      logDebug('Touch End');
-      console.log('Touch End');
-    }
-  }, { passive: false });
-
-  // Mouse Event Handling for Desktop Testing
-  canvas.addEventListener('click', (event) => {
-    const rect = canvas.getBoundingClientRect();
-    const x = (event.clientX - rect.left) * (canvas.width / rect.width);
-    const y = (event.clientY - rect.top) * (canvas.height / rect.height);
-    const circle = getCircleAtPosition(x, y);
-    if (circle) {
-      rotateCircle(circle);
-    }
-  });
-
-  // Function to Check for Merges After Rotation
-  function checkForMerges() {
-    let merged = false;
-
-    for (let i = 0; i < NUM_SECTIONS; i++) {
-      for (let j = NUM_CIRCLES - 1; j > 0; j--) {
-        const circleOuter = circles[j];
-        const circleInner = circles[j - 1];
-        const indexOuter = (i - Math.round(circleOuter.rotation / (2 * Math.PI / NUM_SECTIONS)) + NUM_SECTIONS) % NUM_SECTIONS;
-        const indexInner = (i - Math.round(circleInner.rotation / (2 * Math.PI / NUM_SECTIONS)) + NUM_SECTIONS) % NUM_SECTIONS;
-        const numberOuter = circleOuter.numbers[indexOuter];
-        const numberInner = circleInner.numbers[indexInner];
-
-        if (numberOuter > 0 && numberOuter === numberInner) {
-          merged = true;
-          const sum = numberOuter + numberInner;
-          circleInner.numbers[indexInner] = sum;
-          circleOuter.numbers[indexOuter] = 0;
-          score += sum;
-          scoreDisplay.textContent = score;
-          playSound(mergeSound);
-          createParticles(circleInner.radius, indexInner, circleInner.rotation);
-          addMergedSegment(j - 1, indexInner);
-          logDebug(`Merged numbers: ${numberOuter} + ${numberInner} = ${sum}`);
-          console.log(`Merged numbers: ${numberOuter} + ${numberInner} = ${sum}`);
-        }
-      }
-    }
-
-    if (merged) {
-      playSound(scoreSound);
-      drawGame();
-      respawnNumbers(); // Respawn new numbers after merging
-    } else if (!hasPossibleMoves()) {
-      createCircles(); // Start a new game with random patterns
-      drawGame();
-    }
-  }
-
-  // Function to Add Merged Segment to Highlight
-  function addMergedSegment(circleIndex, segmentIndex) {
-    const currentTime = Date.now();
-    mergedSegments.push({ circleIndex, segmentIndex, time: currentTime });
-  }
-
-  // Function to Remove Old Merged Segments
-  function updateMergedSegments() {
-    const currentTime = Date.now();
-    mergedSegments = mergedSegments.filter(seg => currentTime - seg.time < 500); // Highlight for 500ms
-  }
-
-  // Function to Draw Glare Effect (Removed as not needed)
-  // function drawGlareEffect(radius, angle) {
-  //   ctx.save();
-  //   ctx.translate(centerX, centerY);
-  //   ctx.rotate(angle);
-
-  //   ctx.beginPath();
-  //   ctx.arc(0, 0, radius, -0.1, 0.1);
-  //   ctx.lineWidth = radiusUnit * 0.1;
-  //   ctx.strokeStyle = 'rgba(255, 255, 255, 0.8)';
-  //   ctx.stroke();
-
-  //   ctx.restore();
-  // }
-
-  // Function to Respawn Random Numbers After Merges
-  function respawnNumbers() {
-    circles.forEach((circle, index) => {
-      for (let i = 0; i < NUM_SECTIONS; i++) {
-        if (circle.numbers[i] === 0) {
-          circle.numbers[i] = generateRandomNumber(index);
-          logDebug(`New number ${circle.numbers[i]} respawned at circle ${index}, section ${i}`);
-          console.log(`New number ${circle.numbers[i]} respawned at circle ${index}, section ${i}`);
-        }
-      }
-    });
+    respawnNumbers();
+  } else if (!hasPossibleMoves()) {
+    createCircles();
     drawGame();
   }
-
-  // Generate Random Number for Respawn
-  function generateRandomNumber(circleIndex) {
-    const baseNumber = Math.pow(2, circleIndex + 1);
-    const options = [baseNumber, baseNumber * 2, baseNumber * 4];
-    return options[Math.floor(Math.random() * options.length)];
-  }
-
-  // Function to Check if Any Moves Are Possible
-  function hasPossibleMoves() {
+}
+function respawnNumbers() {
+  circles.forEach((circle, index) => {
     for (let i = 0; i < NUM_SECTIONS; i++) {
-      for (let j = NUM_CIRCLES - 1; j > 0; j--) {
-        const circleOuter = circles[j];
-        const circleInner = circles[j - 1];
-        const indexOuter = (i - Math.round(circleOuter.rotation / (2 * Math.PI / NUM_SECTIONS)) + NUM_SECTIONS) % NUM_SECTIONS;
-        const indexInner = (i - Math.round(circleInner.rotation / (2 * Math.PI / NUM_SECTIONS)) + NUM_SECTIONS) % NUM_SECTIONS;
-        const numberOuter = circleOuter.numbers[indexOuter];
-        const numberInner = circleInner.numbers[indexInner];
-
-        if (numberOuter > 0 && numberOuter === numberInner) {
-          return true;
-        }
+      if (circle.numbers[i] === 0) {
+        circle.numbers[i] = generateRandomNumber(index);
       }
     }
-    return false;
-  }
-
-  // Restart Button Handling
-  restartBtn.addEventListener('click', () => {
-    initGame();
   });
-
-  // Initialize the Game on Page Load
-  window.addEventListener('load', () => {
-    initGame();
-  });
-
-  // Debug Logging with Throttling to Prevent Flooding
-  let lastLogTime = 0;
-  const logInterval = 100; // in milliseconds
-
-  function logDebug(message) {
-    const currentTime = Date.now();
-    if (currentTime - lastLogTime > logInterval) {
-      debugInfo.textContent += `${message}\n`;
-      lastLogTime = currentTime;
-    }
-  }
-
-  // Sound Playback Function
-  function playSound(sound) {
-    if (sound) {
-      sound.currentTime = 0;
-      sound.play();
-    }
-  }
-
-  // Particle Creation for Merges
-  function createParticles(radius, segmentIndex, rotation) {
-    const angle = (2 * Math.PI / NUM_SECTIONS) * segmentIndex + rotation;
-    const x = centerX + (radius - radiusUnit * 0.3) * Math.cos(angle);
-    const y = centerY + (radius - radiusUnit * 0.3) * Math.sin(angle);
-    for (let i = 0; i < 20; i++) {
-      const particle = {
-        x: x,
-        y: y,
-        size: Math.random() * 5 + 2,
-        speedX: (Math.random() - 0.5) * 4,
-        speedY: (Math.random() - 0.5) * 4,
-        opacity: 1,
-        color: colors[Math.floor(Math.random() * colors.length)]
-      };
-      particles.push(particle);
-    }
-  }
-
-  // Particle Creation for Win (Removed as game is indefinite)
-  // function createWinParticles() {
-  //   for (let i = 0; i < 100; i++) {
-  //     const angle = Math.random() * 2 * Math.PI;
-  //     const speed = Math.random() * 5 + 2;
-  //     const particle = {
-  //       x: centerX,
-  //       y: centerY,
-  //       size: Math.random() * 5 + 2,
-  //       speedX: Math.cos(angle) * speed,
-  //       speedY: Math.sin(angle) * speed,
-  //       opacity: 1,
-  //       color: '#FFD700' // Gold color for win
-  //     };
-  //     particles.push(particle);
-  //   }
-  // }
-
-  // Function to Draw Particles
-  function drawParticles() {
-    particles.forEach((particle, index) => {
-      ctx.save();
-      ctx.globalAlpha = particle.opacity;
-      ctx.fillStyle = particle.color;
-      ctx.beginPath();
-      ctx.arc(particle.x, particle.y, particle.size, 0, 2 * Math.PI);
-      ctx.fill();
-      ctx.restore();
-
-      // Update particle position
-      particle.x += particle.speedX;
-      particle.y += particle.speedY;
-      particle.opacity -= 0.02;
-
-      // Remove particles that are invisible
-      if (particle.opacity <= 0) {
-        particles.splice(index, 1);
+  drawGame();
+}
+function generateRandomNumber(circleIndex) {
+  const baseNumber = Math.pow(2, circleIndex + 1);
+  const options = [baseNumber, baseNumber * 2, baseNumber * 4];
+  return options[Math.floor(Math.random() * options.length)];
+}
+function hasPossibleMoves() {
+  for (let i = 0; i < NUM_SECTIONS; i++) {
+    for (let j = NUM_CIRCLES - 1; j > 0; j--) {
+      const circleOuter = circles[j];
+      const circleInner = circles[j - 1];
+      const indexOuter = (i - Math.round(circleOuter.rotation / (2 * Math.PI / NUM_SECTIONS)) + NUM_SECTIONS) % NUM_SECTIONS;
+      const indexInner = (i - Math.round(circleInner.rotation / (2 * Math.PI / NUM_SECTIONS)) + NUM_SECTIONS) % NUM_SECTIONS;
+      const numberOuter = circleOuter.numbers[indexOuter];
+      const numberInner = circleInner.numbers[indexInner];
+      if (numberOuter > 0 && numberOuter === numberInner) {
+        return true;
       }
-    });
-
-    // Update merged segments
-    updateMergedSegments();
+    }
   }
-
-  // Function to Add Merged Segment to Highlight
-  function addMergedSegment(circleIndex, segmentIndex) {
-    const currentTime = Date.now();
-    mergedSegments.push({ circleIndex, segmentIndex, time: currentTime });
+  return false;
+}
+restartBtn.addEventListener('click', () => {
+  initGame();
+});
+window.addEventListener('load', () => {
+  initGame();
+});
+let lastLogTime = 0;
+const logInterval = 100;
+function logDebug(message) {
+  const currentTime = Date.now();
+  if (currentTime - lastLogTime > logInterval) {
+    debugInfo.textContent += `${message}\n`;
+    lastLogTime = currentTime;
   }
-
-  // Function to Remove Old Merged Segments
-  function updateMergedSegments() {
-    const currentTime = Date.now();
-    mergedSegments = mergedSegments.filter(seg => currentTime - seg.time < 500); // Highlight for 500ms
+}
+function playSound(sound) {
+  if (sound) {
+    sound.currentTime = 0;
+    sound.play();
   }
-
-  // Animation Loop for Particles
-  function animate() {
-    drawParticles();
-    requestAnimationFrame(animate);
+}
+function createParticles(radius, segmentIndex, rotation) {
+  const angle = (2 * Math.PI / NUM_SECTIONS) * segmentIndex + rotation;
+  const x = centerX + (radius - radiusUnit * 0.4) * Math.cos(angle);
+  const y = centerY + (radius - radiusUnit * 0.4) * Math.sin(angle);
+  for (let i = 0; i < 20; i++) {
+    const particle = {
+      x: x,
+      y: y,
+      size: Math.random() * 6 + 2,
+      speedX: (Math.random() - 0.5) * 5,
+      speedY: (Math.random() - 0.5) * 5,
+      opacity: 1,
+      color: colors[Math.floor(Math.random() * colors.length)]
+    };
+    particles.push(particle);
   }
-
-  animate(); // Start the animation loop
-
+}
+function drawParticles() {
+  particles.forEach((particle, index) => {
+    ctx.save();
+    ctx.globalAlpha = particle.opacity;
+    ctx.fillStyle = particle.color;
+    ctx.beginPath();
+    ctx.arc(particle.x, particle.y, particle.size, 0, 2 * Math.PI);
+    ctx.fill();
+    ctx.restore();
+    particle.x += particle.speedX;
+    particle.y += particle.speedY;
+    particle.opacity -= 0.03;
+    if (particle.opacity <= 0) {
+      particles.splice(index, 1);
+    }
+  });
+  const currentTime = Date.now();
+  mergedSegments = mergedSegments.filter(seg => currentTime - seg.time < 500);
+}
+function animate() {
+  drawParticles();
+  requestAnimationFrame(animate);
+}
+animate();
 </script>
 
 </body>
 </html>
-
