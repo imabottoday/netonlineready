@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<title>Concentric Merge Game - Enhanced</title>
+<title>Concentric Merge Game</title>
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <style>
   body {
@@ -92,7 +92,6 @@
   <div id="debug-info">Debug Info</div>
 </div>
 
-<!-- Sound Effects -->
 <audio id="rotate-sound" src="https://freesound.org/data/previews/341/341695_5260870-lq.mp3"></audio>
 <audio id="merge-sound" src="https://freesound.org/data/previews/320/320655_5260870-lq.mp3"></audio>
 <audio id="score-sound" src="https://freesound.org/data/previews/331/331912_3248244-lq.mp3"></audio>
@@ -118,6 +117,7 @@ const colors = ['#FF6B6B', '#FFD93D', '#6BCB77', '#4D96FF'];
 let canvasWidth, canvasHeight, centerX, centerY, radiusUnit;
 let particles = [];
 let mergedSegments = [];
+
 function initGame() {
   score = 0;
   gameOver = false;
@@ -131,6 +131,7 @@ function initGame() {
   drawGame();
   logDebug('Game Initialized');
 }
+
 function resizeCanvas() {
   canvasWidth = canvas.offsetWidth;
   canvasHeight = canvas.offsetHeight;
@@ -142,7 +143,9 @@ function resizeCanvas() {
   drawGame();
   logDebug(`Canvas Resized: Width=${canvasWidth}, Height=${canvasHeight}, CenterX=${centerX}, CenterY=${centerY}, RadiusUnit=${radiusUnit}`);
 }
+
 window.addEventListener('resize', resizeCanvas);
+
 function createCircles() {
   for (let i = 0; i < NUM_CIRCLES; i++) {
     const circle = {
@@ -155,6 +158,7 @@ function createCircles() {
     logDebug(`Circle ${i} created with radius ${circle.radius}`);
   }
 }
+
 function generateMergeableNumbers(circleIndex) {
   let numbers = [];
   for (let i = 0; i < NUM_SECTIONS; i++) {
@@ -174,9 +178,26 @@ function generateMergeableNumbers(circleIndex) {
     const j = Math.floor(Math.random() * (i + 1));
     [numbers[i], numbers[j]] = [numbers[j], numbers[i]];
   }
+  ensureAtLeastOneMerge(circleIndex, numbers);
   logDebug(`Mergeable Numbers Generated for Circle ${circleIndex}: ${numbers.join(', ')}`);
   return numbers;
 }
+
+function ensureAtLeastOneMerge(circleIndex, numbers) {
+  if (circleIndex === 0) return;
+  let hasMerge = false;
+  for (let i = 0; i < NUM_SECTIONS; i++) {
+    if (circles[circleIndex - 1].numbers[i] === numbers[i]) {
+      hasMerge = true;
+      break;
+    }
+  }
+  if (!hasMerge) {
+    const randomIndex = Math.floor(Math.random() * NUM_SECTIONS);
+    numbers[randomIndex] = circles[circleIndex - 1].numbers[randomIndex];
+  }
+}
+
 function drawGame() {
   ctx.clearRect(0, 0, canvasWidth, canvasHeight);
   if (circles.length > 0) {
@@ -187,6 +208,7 @@ function drawGame() {
     logDebug('Game Drawn');
   }
 }
+
 function drawCircle(circle, index) {
   ctx.save();
   ctx.translate(centerX, centerY);
@@ -226,6 +248,7 @@ function drawCircle(circle, index) {
   }
   ctx.restore();
 }
+
 function getCircleAtPosition(x, y) {
   const dx = x - centerX;
   const dy = y - centerY;
@@ -240,6 +263,7 @@ function getCircleAtPosition(x, y) {
   logDebug('No Circle Selected');
   return null;
 }
+
 function rotateCircle(circle, direction = 1) {
   if (gameOver) return;
   const rotationStep = (2 * Math.PI / NUM_SECTIONS) * direction;
@@ -248,9 +272,11 @@ function rotateCircle(circle, direction = 1) {
   drawGame();
   checkForMerges();
 }
+
 let touchStartX = null;
 let touchStartY = null;
 let touchStartTime = null;
+
 canvas.addEventListener('touchstart', (event) => {
   event.preventDefault();
   if (event.touches.length === 1) {
@@ -261,9 +287,11 @@ canvas.addEventListener('touchstart', (event) => {
     logDebug('Touch Start');
   }
 }, { passive: false });
+
 canvas.addEventListener('touchmove', (event) => {
   event.preventDefault();
 }, { passive: false });
+
 canvas.addEventListener('touchend', (event) => {
   event.preventDefault();
   if (event.changedTouches.length === 1 && touchStartX !== null && touchStartY !== null) {
@@ -295,6 +323,7 @@ canvas.addEventListener('touchend', (event) => {
     logDebug('Touch End');
   }
 }, { passive: false });
+
 canvas.addEventListener('click', (event) => {
   const rect = canvas.getBoundingClientRect();
   const x = (event.clientX - rect.left) * (canvas.width / rect.width);
@@ -304,6 +333,7 @@ canvas.addEventListener('click', (event) => {
     rotateCircle(circle);
   }
 });
+
 function checkForMerges() {
   let merged = false;
   const segmentsToHighlight = [];
@@ -339,6 +369,7 @@ function checkForMerges() {
     drawGame();
   }
 }
+
 function respawnNumbers() {
   circles.forEach((circle, index) => {
     for (let i = 0; i < NUM_SECTIONS; i++) {
@@ -349,11 +380,13 @@ function respawnNumbers() {
   });
   drawGame();
 }
+
 function generateRandomNumber(circleIndex) {
   const baseNumber = Math.pow(2, circleIndex + 1);
   const options = [baseNumber, baseNumber * 2, baseNumber * 4];
   return options[Math.floor(Math.random() * options.length)];
 }
+
 function hasPossibleMoves() {
   for (let i = 0; i < NUM_SECTIONS; i++) {
     for (let j = NUM_CIRCLES - 1; j > 0; j--) {
@@ -370,14 +403,18 @@ function hasPossibleMoves() {
   }
   return false;
 }
+
 restartBtn.addEventListener('click', () => {
   initGame();
 });
+
 window.addEventListener('load', () => {
   initGame();
 });
+
 let lastLogTime = 0;
 const logInterval = 100;
+
 function logDebug(message) {
   const currentTime = Date.now();
   if (currentTime - lastLogTime > logInterval) {
@@ -385,12 +422,14 @@ function logDebug(message) {
     lastLogTime = currentTime;
   }
 }
+
 function playSound(sound) {
   if (sound) {
     sound.currentTime = 0;
     sound.play();
   }
 }
+
 function createParticles(radius, segmentIndex, rotation) {
   const angle = (2 * Math.PI / NUM_SECTIONS) * segmentIndex + rotation;
   const x = centerX + (radius - radiusUnit * 0.4) * Math.cos(angle);
@@ -408,6 +447,7 @@ function createParticles(radius, segmentIndex, rotation) {
     particles.push(particle);
   }
 }
+
 function drawParticles() {
   particles.forEach((particle, index) => {
     ctx.save();
@@ -427,10 +467,12 @@ function drawParticles() {
   const currentTime = Date.now();
   mergedSegments = mergedSegments.filter(seg => currentTime - seg.time < 500);
 }
+
 function animate() {
   drawParticles();
   requestAnimationFrame(animate);
 }
+
 animate();
 </script>
 
