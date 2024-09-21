@@ -75,6 +75,14 @@
     max-height: 50vh; /* Reduced height for the debug window */
     overflow-y: auto;
   }
+  /* Particle Effects */
+  .particle {
+    position: absolute;
+    border-radius: 50%;
+    pointer-events: none;
+    opacity: 0;
+    transition: opacity 0.5s, transform 1s;
+  }
 </style>
 </head>
 <body>
@@ -90,16 +98,22 @@
   <div id="debug-info">Debug Info</div>
 </div>
 
+<!-- Sound Effects -->
+<audio id="rotate-sound" src="https://freesound.org/data/previews/341/341695_5260870-lq.mp3"></audio>
+<audio id="merge-sound" src="https://freesound.org/data/previews/320/320655_5260870-lq.mp3"></audio>
+<audio id="score-sound" src="https://freesound.org/data/previews/331/331912_3248244-lq.mp3"></audio>
+<audio id="win-sound" src="https://freesound.org/data/previews/331/331912_3248244-lq.mp3"></audio>
+
 <script>
   // Game Constants
   const NUM_CIRCLES = 4;
   const NUM_SECTIONS = 12;
   const TARGET_SCORE = 500;
-  
+
   // Game Variables
   let score = 0;
   let gameOver = false;
-  
+
   // DOM Elements
   const canvas = document.getElementById('game-canvas');
   const ctx = canvas.getContext('2d');
@@ -108,17 +122,26 @@
   const messageDisplay = document.getElementById('message');
   const restartBtn = document.getElementById('restart-btn');
   const debugInfo = document.getElementById('debug-info');
-  
+
+  // Sound Effects
+  const rotateSound = document.getElementById('rotate-sound');
+  const mergeSound = document.getElementById('merge-sound');
+  const scoreSound = document.getElementById('score-sound');
+  const winSound = document.getElementById('win-sound');
+
   // Initialize Target Score
   targetScoreDisplay.textContent = TARGET_SCORE;
-  
+
   // Circle Data Structure
   let circles = [];
   const colors = ['#FF5733', '#33FF57', '#3357FF', '#F333FF']; // Colors for each circle
-  
+
   // Canvas Dimensions and Calculations
   let canvasWidth, canvasHeight, centerX, centerY, radiusUnit;
-  
+
+  // Particle Effects
+  let particles = [];
+
   // Initialize Game
   function initGame() {
     score = 0;
@@ -126,13 +149,14 @@
     scoreDisplay.textContent = score;
     messageDisplay.style.display = 'none';
     circles = [];
+    particles = [];
     resizeCanvas();
     createCircles();
     drawGame();
     logDebug('Game Initialized');
     console.log('Game Initialized');
   }
-  
+
   // Resize Canvas and Recalculate Dimensions
   function resizeCanvas() {
     canvasWidth = canvas.offsetWidth;
@@ -146,17 +170,17 @@
     logDebug(`Canvas Resized: Width=${canvasWidth}, Height=${canvasHeight}, CenterX=${centerX}, CenterY=${centerY}, RadiusUnit=${radiusUnit}`);
     console.log('Canvas Resized:', { canvasWidth, canvasHeight, centerX, centerY, radiusUnit });
   }
-  
+
   // Handle Window Resize
   window.addEventListener('resize', resizeCanvas);
-  
+
   // Create Circles with Properly Generated Numbers
   function createCircles() {
     for (let i = 0; i < NUM_CIRCLES; i++) {
       const circle = {
         radius: radiusUnit * (i + 1),
         rotation: 0,
-        numbers: generateProperNumbers(i),  // Using the corrected logic
+        numbers: generateMergeableNumbers(i),
         color: colors[i]
       };
       circles.push(circle);
@@ -164,18 +188,26 @@
       console.log(`Circle ${i} created:`, circle);
     }
   }
-  
-  // Generate Proper Numbers for Each Circle
-  function generateProperNumbers(circleIndex) {
-    // Allow a wider range of numbers for better merging possibilities
-    // Instead of a single base number, introduce variability
+
+  // Generate Mergeable Numbers for Each Circle
+  function generateMergeableNumbers(circleIndex) {
+    // Ensure that numbers can be merged by aligning some numbers across circles
     let numbers = [];
-    
+
     for (let i = 0; i < NUM_SECTIONS; i++) {
-      // Assign a base number and add some randomness
-      const baseNumber = Math.pow(2, circleIndex + 1);
-      const randomFactor = Math.random() < 0.7 ? 0 : Math.pow(2, circleIndex + 2); // 70% base, 30% next power
-      numbers.push(baseNumber + randomFactor);
+      if (circleIndex === 0) {
+        // Inner circle: base numbers
+        numbers.push(Math.pow(2, Math.floor(Math.random() * 3) + 1)); // 2,4,8
+      } else {
+        // Outer circles: inherit some numbers from the inner circle to allow merging
+        const inheritChance = 0.3; // 30% chance to inherit from inner circle
+        if (Math.random() < inheritChance && circles[circleIndex - 1]) {
+          const innerNumber = circles[circleIndex - 1].numbers[i];
+          numbers.push(innerNumber); // Inherit for potential merge
+        } else {
+          numbers.push(Math.pow(2, Math.floor(Math.random() * 3) + circleIndex + 1)); // Diverse numbers
+        }
+      }
     }
 
     // Shuffle the numbers to randomize their placement
@@ -184,11 +216,11 @@
       [numbers[i], numbers[j]] = [numbers[j], numbers[i]];
     }
 
-    logDebug(`Numbers Generated for Circle ${circleIndex}: ${numbers.join(', ')}`);
-    console.log(`Numbers Generated for Circle ${circleIndex}:`, numbers);
+    logDebug(`Mergeable Numbers Generated for Circle ${circleIndex}: ${numbers.join(', ')}`);
+    console.log(`Mergeable Numbers Generated for Circle ${circleIndex}:`, numbers);
     return numbers;
   }
-  
+
   // Draw the Entire Game (All Circles)
   function drawGame() {
     ctx.clearRect(0, 0, canvasWidth, canvasHeight);
@@ -197,6 +229,7 @@
       for (let i = NUM_CIRCLES - 1; i >= 0; i--) {
         drawCircle(circles[i], i);
       }
+      drawParticles();
       logDebug('Game Drawn');
       console.log('Game Drawn');
     } else {
@@ -204,37 +237,37 @@
       console.log('No circles to draw');
     }
   }
-  
+
   // Draw Individual Circle with Segments
   function drawCircle(circle, index) {
     ctx.save();
     ctx.translate(centerX, centerY);
     ctx.rotate(circle.rotation);
-    
+
     // Draw Circle Segments
     for (let i = 0; i < NUM_SECTIONS; i++) {
       const startAngle = (2 * Math.PI / NUM_SECTIONS) * i;
       const endAngle = startAngle + (2 * Math.PI / NUM_SECTIONS);
-      
+
       ctx.beginPath();
       ctx.moveTo(0, 0);
       ctx.arc(0, 0, circle.radius, startAngle, endAngle);
       ctx.closePath();
-      
+
       ctx.fillStyle = circle.color;
       ctx.fill();
       ctx.strokeStyle = '#fff';
       ctx.lineWidth = 2;
       ctx.stroke();
-      
+
       // Draw Numbers in Segments
       const angle = startAngle + (endAngle - startAngle) / 2;
       const x = (circle.radius - radiusUnit * 0.3) * Math.cos(angle);
       const y = (circle.radius - radiusUnit * 0.3) * Math.sin(angle);
       ctx.save();
       ctx.translate(x, y);
-      // Remove rotation to keep numbers upright
-      // ctx.rotate(-circle.rotation - angle);
+      // Keep numbers upright
+      ctx.rotate(-circle.rotation - angle);
       ctx.fillStyle = '#fff';
       ctx.font = `${radiusUnit * 0.4}px Arial`;
       ctx.textAlign = 'center';
@@ -249,7 +282,7 @@
     logDebug(`Circle ${index} Drawn with Rotation ${circle.rotation.toFixed(2)} radians`);
     console.log(`Circle ${index} Drawn:`, circle);
   }
-  
+
   // Detect Circle Selection Based on Touch or Click Position
   function getCircleAtPosition(x, y) {
     const dx = x - centerX;
@@ -267,7 +300,7 @@
     console.log('No Circle Selected');
     return null;
   }
-  
+
   // Rotate the Selected Circle
   function rotateCircle(circle, direction = 1) { // direction: 1 for clockwise, -1 for counter-clockwise
     if (gameOver) {
@@ -279,15 +312,16 @@
     circle.rotation = (circle.rotation + rotationStep) % (2 * Math.PI);
     logDebug(`Circle Rotated to ${circle.rotation.toFixed(2)} radians`);
     console.log('Circle Rotated:', circle);
+    playSound(rotateSound);
     drawGame();
     checkForMerges();  // Check for merges after each rotation
   }
-  
+
   // Touch Event Handling
   let touchStartX = null;
   let touchStartY = null;
   let touchStartTime = null;
-  
+
   canvas.addEventListener('touchstart', (event) => {
     event.preventDefault();
     if (event.touches.length === 1) { // Single touch
@@ -299,13 +333,13 @@
       console.log('Touch Start');
     }
   }, { passive: false });
-  
+
   canvas.addEventListener('touchmove', (event) => {
     event.preventDefault();
     // Future Enhancement: Implement swipe or drag to rotate circles
-    // TODO: Implement left/right spin based on touch movement
+    // Already handling swipe in touchend
   }, { passive: false });
-  
+
   canvas.addEventListener('touchend', (event) => {
     event.preventDefault();
     if (event.changedTouches.length === 1 && touchStartX !== null && touchStartY !== null) {
@@ -313,7 +347,7 @@
       const deltaX = touch.clientX - touchStartX;
       const deltaY = touch.clientY - touchStartY;
       const elapsedTime = Date.now() - touchStartTime;
-      
+
       // Determine swipe direction based on deltaX
       if (Math.abs(deltaX) > Math.abs(deltaY) && Math.abs(deltaX) > 30 && elapsedTime < 500) {
         const direction = deltaX > 0 ? 1 : -1; // 1: right swipe (clockwise), -1: left swipe (counter-clockwise)
@@ -334,7 +368,7 @@
           rotateCircle(circle); // Default direction (clockwise)
         }
       }
-      
+
       // Reset touch variables
       touchStartX = null;
       touchStartY = null;
@@ -343,7 +377,7 @@
       console.log('Touch End');
     }
   }, { passive: false });
-  
+
   // Mouse Event Handling for Desktop Testing
   canvas.addEventListener('click', (event) => {
     const rect = canvas.getBoundingClientRect();
@@ -354,11 +388,11 @@
       rotateCircle(circle);
     }
   });
-  
+
   // Function to Check for Merges After Rotation
   function checkForMerges() {
     let merged = false;
-    
+
     for (let i = 0; i < NUM_SECTIONS; i++) {
       for (let j = NUM_CIRCLES - 1; j > 0; j--) {
         const circleOuter = circles[j];
@@ -367,7 +401,7 @@
         const indexInner = (i - Math.round(circleInner.rotation / (2 * Math.PI / NUM_SECTIONS)) + NUM_SECTIONS) % NUM_SECTIONS;
         const numberOuter = circleOuter.numbers[indexOuter];
         const numberInner = circleInner.numbers[indexInner];
-        
+
         if (numberOuter > 0 && numberOuter === numberInner) {
           merged = true;
           const sum = numberOuter + numberInner;
@@ -375,16 +409,16 @@
           circleOuter.numbers[indexOuter] = 0;
           score += sum;
           scoreDisplay.textContent = score;
+          playSound(mergeSound);
+          createParticles(circleInner.radius, indexInner, circleInner.rotation);
           logDebug(`Merged numbers: ${numberOuter} + ${numberInner} = ${sum}`);
           console.log(`Merged numbers: ${numberOuter} + ${numberInner} = ${sum}`);
-          
-          // Add a glare effect for merging
-          drawGlareEffect(circleInner.radius, circleInner.rotation + (indexInner * 2 * Math.PI / NUM_SECTIONS));
         }
       }
     }
-    
+
     if (merged) {
+      playSound(scoreSound);
       drawGame();
       respawnNumbers(); // Respawn new numbers after merging
       checkForTarget(); // Check if target score is reached
@@ -400,26 +434,28 @@
       gameOver = true;
       messageDisplay.textContent = 'You Win!';
       messageDisplay.style.display = 'block';
+      playSound(winSound);
+      createWinParticles();
       logDebug('Target Score Reached');
       console.log('Target Score Reached');
     }
   }
-  
+
   // Function to Draw Glare Effect
   function drawGlareEffect(radius, angle) {
     ctx.save();
     ctx.translate(centerX, centerY);
     ctx.rotate(angle);
-    
+
     ctx.beginPath();
     ctx.arc(0, 0, radius, -0.1, 0.1);
     ctx.lineWidth = radiusUnit * 0.1;
     ctx.strokeStyle = 'rgba(255, 255, 255, 0.8)';
     ctx.stroke();
-    
+
     ctx.restore();
   }
-  
+
   // Function to Respawn Random Numbers After Merges
   function respawnNumbers() {
     circles.forEach((circle, index) => {
@@ -433,14 +469,14 @@
     });
     drawGame();
   }
-  
+
   // Generate Random Number for Respawn
   function generateRandomNumber(circleIndex) {
     const baseNumber = Math.pow(2, circleIndex + 1);
     const options = [baseNumber, baseNumber * 2, baseNumber * 4];
     return options[Math.floor(Math.random() * options.length)];
   }
-  
+
   // Function to Check if Any Moves Are Possible
   function hasPossibleMoves() {
     for (let i = 0; i < NUM_SECTIONS; i++) {
@@ -451,7 +487,7 @@
         const indexInner = (i - Math.round(circleInner.rotation / (2 * Math.PI / NUM_SECTIONS)) + NUM_SECTIONS) % NUM_SECTIONS;
         const numberOuter = circleOuter.numbers[indexOuter];
         const numberInner = circleInner.numbers[indexInner];
-        
+
         if (numberOuter > 0 && numberOuter === numberInner) {
           return true;
         }
@@ -459,21 +495,21 @@
     }
     return false;
   }
-  
+
   // Restart Button Handling
   restartBtn.addEventListener('click', () => {
     initGame();
   });
-  
+
   // Initialize the Game on Page Load
   window.addEventListener('load', () => {
     initGame();
   });
-  
+
   // Debug Logging with Throttling to Prevent Flooding
   let lastLogTime = 0;
   const logInterval = 100; // in milliseconds
-  
+
   function logDebug(message) {
     const currentTime = Date.now();
     if (currentTime - lastLogTime > logInterval) {
@@ -481,7 +517,83 @@
       lastLogTime = currentTime;
     }
   }
-  
+
+  // Sound Playback Function
+  function playSound(sound) {
+    if (sound) {
+      sound.currentTime = 0;
+      sound.play();
+    }
+  }
+
+  // Particle Creation for Merges
+  function createParticles(radius, segmentIndex, rotation) {
+    const angle = (2 * Math.PI / NUM_SECTIONS) * segmentIndex + rotation;
+    const x = centerX + (radius - radiusUnit * 0.3) * Math.cos(angle);
+    const y = centerY + (radius - radiusUnit * 0.3) * Math.sin(angle);
+    for (let i = 0; i < 20; i++) {
+      const particle = {
+        x: x,
+        y: y,
+        size: Math.random() * 5 + 2,
+        speedX: (Math.random() - 0.5) * 4,
+        speedY: (Math.random() - 0.5) * 4,
+        opacity: 1,
+        color: colors[Math.floor(Math.random() * colors.length)]
+      };
+      particles.push(particle);
+    }
+  }
+
+  // Particle Creation for Win
+  function createWinParticles() {
+    for (let i = 0; i < 100; i++) {
+      const angle = Math.random() * 2 * Math.PI;
+      const speed = Math.random() * 5 + 2;
+      const particle = {
+        x: centerX,
+        y: centerY,
+        size: Math.random() * 5 + 2,
+        speedX: Math.cos(angle) * speed,
+        speedY: Math.sin(angle) * speed,
+        opacity: 1,
+        color: '#FFD700' // Gold color for win
+      };
+      particles.push(particle);
+    }
+  }
+
+  // Function to Draw Particles
+  function drawParticles() {
+    particles.forEach((particle, index) => {
+      ctx.save();
+      ctx.globalAlpha = particle.opacity;
+      ctx.fillStyle = particle.color;
+      ctx.beginPath();
+      ctx.arc(particle.x, particle.y, particle.size, 0, 2 * Math.PI);
+      ctx.fill();
+      ctx.restore();
+
+      // Update particle position
+      particle.x += particle.speedX;
+      particle.y += particle.speedY;
+      particle.opacity -= 0.02;
+
+      // Remove particles that are invisible
+      if (particle.opacity <= 0) {
+        particles.splice(index, 1);
+      }
+    });
+  }
+
+  // Animation Loop for Particles
+  function animate() {
+    drawParticles();
+    requestAnimationFrame(animate);
+  }
+
+  animate(); // Start the animation loop
+
 </script>
 
 </body>
