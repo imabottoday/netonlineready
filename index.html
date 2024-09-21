@@ -167,18 +167,21 @@
   
   // Generate Proper Numbers for Each Circle
   function generateProperNumbers(circleIndex) {
-    const baseNumber = Math.pow(2, circleIndex + 1);
+    // Allow a wider range of numbers for better merging possibilities
+    // Instead of a single base number, introduce variability
     let numbers = [];
     
-    // Create a pattern for the circle
     for (let i = 0; i < NUM_SECTIONS; i++) {
-        numbers.push(baseNumber);
+      // Assign a base number and add some randomness
+      const baseNumber = Math.pow(2, circleIndex + 1);
+      const randomFactor = Math.random() < 0.7 ? 0 : Math.pow(2, circleIndex + 2); // 70% base, 30% next power
+      numbers.push(baseNumber + randomFactor);
     }
 
     // Shuffle the numbers to randomize their placement
     for (let i = numbers.length - 1; i > 0; i--) {
-        const j = Math.floor(Math.random() * (i + 1));
-        [numbers[i], numbers[j]] = [numbers[j], numbers[i]];
+      const j = Math.floor(Math.random() * (i + 1));
+      [numbers[i], numbers[j]] = [numbers[j], numbers[i]];
     }
 
     logDebug(`Numbers Generated for Circle ${circleIndex}: ${numbers.join(', ')}`);
@@ -230,7 +233,8 @@
       const y = (circle.radius - radiusUnit * 0.3) * Math.sin(angle);
       ctx.save();
       ctx.translate(x, y);
-      ctx.rotate(-circle.rotation - angle);
+      // Remove rotation to keep numbers upright
+      // ctx.rotate(-circle.rotation - angle);
       ctx.fillStyle = '#fff';
       ctx.font = `${radiusUnit * 0.4}px Arial`;
       ctx.textAlign = 'center';
@@ -252,7 +256,7 @@
     const dy = y - centerY;
     const distance = Math.sqrt(dx * dx + dy * dy);
     logDebug(`Touch Position: (${x.toFixed(2)}, ${y.toFixed(2)}), Distance from Center: ${distance.toFixed(2)}`);
-        for (let i = NUM_CIRCLES - 1; i >= 0; i--) {
+    for (let i = NUM_CIRCLES - 1; i >= 0; i--) {
       if (distance <= circles[i].radius + radiusUnit * 0.3 && distance >= circles[i].radius - radiusUnit * 0.3) {
         logDebug(`Circle ${i} Selected`);
         console.log(`Circle ${i} Selected:`, circles[i]);
@@ -265,13 +269,14 @@
   }
   
   // Rotate the Selected Circle
-  function rotateCircle(circle) {
+  function rotateCircle(circle, direction = 1) { // direction: 1 for clockwise, -1 for counter-clockwise
     if (gameOver) {
       logDebug('Game Over. Rotation Disabled.');
       console.log('Game Over. Rotation Disabled.');
       return;
     }
-    circle.rotation = (circle.rotation + (2 * Math.PI / NUM_SECTIONS)) % (2 * Math.PI);
+    const rotationStep = (2 * Math.PI / NUM_SECTIONS) * direction;
+    circle.rotation = (circle.rotation + rotationStep) % (2 * Math.PI);
     logDebug(`Circle Rotated to ${circle.rotation.toFixed(2)} radians`);
     console.log('Circle Rotated:', circle);
     drawGame();
@@ -279,21 +284,63 @@
   }
   
   // Touch Event Handling
+  let touchStartX = null;
+  let touchStartY = null;
+  let touchStartTime = null;
+  
   canvas.addEventListener('touchstart', (event) => {
     event.preventDefault();
-    logDebug('Touch Start');
-    console.log('Touch Start');
+    if (event.touches.length === 1) { // Single touch
+      const touch = event.touches[0];
+      touchStartX = touch.clientX;
+      touchStartY = touch.clientY;
+      touchStartTime = Date.now();
+      logDebug('Touch Start');
+      console.log('Touch Start');
+    }
+  }, { passive: false });
+  
+  canvas.addEventListener('touchmove', (event) => {
+    event.preventDefault();
+    // Future Enhancement: Implement swipe or drag to rotate circles
+    // TODO: Implement left/right spin based on touch movement
   }, { passive: false });
   
   canvas.addEventListener('touchend', (event) => {
     event.preventDefault();
-    const rect = canvas.getBoundingClientRect();
-    const touch = event.changedTouches[0];
-    const x = (touch.clientX - rect.left) * (canvas.width / rect.width);
-    const y = (touch.clientY - rect.top) * (canvas.height / rect.height);
-    const circle = getCircleAtPosition(x, y);
-    if (circle) {
-      rotateCircle(circle);
+    if (event.changedTouches.length === 1 && touchStartX !== null && touchStartY !== null) {
+      const touch = event.changedTouches[0];
+      const deltaX = touch.clientX - touchStartX;
+      const deltaY = touch.clientY - touchStartY;
+      const elapsedTime = Date.now() - touchStartTime;
+      
+      // Determine swipe direction based on deltaX
+      if (Math.abs(deltaX) > Math.abs(deltaY) && Math.abs(deltaX) > 30 && elapsedTime < 500) {
+        const direction = deltaX > 0 ? 1 : -1; // 1: right swipe (clockwise), -1: left swipe (counter-clockwise)
+        const rect = canvas.getBoundingClientRect();
+        const x = (touch.clientX - rect.left) * (canvas.width / rect.width);
+        const y = (touch.clientY - rect.top) * (canvas.height / rect.height);
+        const circle = getCircleAtPosition(x, y);
+        if (circle) {
+          rotateCircle(circle, direction);
+        }
+      } else {
+        // Treat as a tap if swipe is not significant
+        const rect = canvas.getBoundingClientRect();
+        const x = (touch.clientX - rect.left) * (canvas.width / rect.width);
+        const y = (touch.clientY - rect.top) * (canvas.height / rect.height);
+        const circle = getCircleAtPosition(x, y);
+        if (circle) {
+          rotateCircle(circle); // Default direction (clockwise)
+        }
+      }
+      
+      // Reset touch variables
+      touchStartX = null;
+      touchStartY = null;
+      touchStartTime = null;
+      logDebug('Touch End');
+      console.log('Touch End');
     }
   }, { passive: false });
   
@@ -340,12 +387,24 @@
     if (merged) {
       drawGame();
       respawnNumbers(); // Respawn new numbers after merging
+      checkForTarget(); // Check if target score is reached
     } else if (!hasPossibleMoves()) {
       createCircles(); // Start a new game with random patterns
       drawGame();
     }
   }
 
+  // Function to Check if Target Score is Reached
+  function checkForTarget() {
+    if (score >= TARGET_SCORE && !gameOver) {
+      gameOver = true;
+      messageDisplay.textContent = 'You Win!';
+      messageDisplay.style.display = 'block';
+      logDebug('Target Score Reached');
+      console.log('Target Score Reached');
+    }
+  }
+  
   // Function to Draw Glare Effect
   function drawGlareEffect(radius, angle) {
     ctx.save();
@@ -360,7 +419,7 @@
     
     ctx.restore();
   }
-
+  
   // Function to Respawn Random Numbers After Merges
   function respawnNumbers() {
     circles.forEach((circle, index) => {
@@ -374,11 +433,12 @@
     });
     drawGame();
   }
-
+  
   // Generate Random Number for Respawn
   function generateRandomNumber(circleIndex) {
     const baseNumber = Math.pow(2, circleIndex + 1);
-    return baseNumber + Math.floor(Math.random() * 3) * 2; // Randomly choose between base, base+2, and base+4
+    const options = [baseNumber, baseNumber * 2, baseNumber * 4];
+    return options[Math.floor(Math.random() * options.length)];
   }
   
   // Function to Check if Any Moves Are Possible
@@ -426,7 +486,3 @@
 
 </body>
 </html>
-
-
-
-                                    
