@@ -3,29 +3,27 @@
 <head>
   <meta charset="UTF-8" />
   <title>3D Concentric Circles Puzzle</title>
-  <!-- p5.js with WEBGL support -->
+  <!-- Load p5.js (with WEBGL support) from CDN -->
   <script src="https://cdn.jsdelivr.net/npm/p5@1.6.0/lib/p5.min.js"></script>
 </head>
 <body>
 <script>
 /***********************************************************
- * 3D Concentric Circle Puzzle in p5.js (Single File)
+ * 3D Concentric Circle Puzzle in p5.js WEBGL (Single File)
  * ---------------------------------------------------------
- * - Merges, highlights, scoring, offset logic from your
- *   original puzzle.
- * - "Smooth & shiny" wedge geometry using specularMaterial,
- *   shininess, and finer subdivision.
- * - 3D text is forced on top by disabling depth test briefly.
- * - Single-pass merges, no chain merges.
- * - One file suitable for GitHub Pages.
+ * - Three concentric rings, each with 12 segments.
+ * - Single-pass merge, highlight merges in gold, scoring.
+ * - "Dragging" a ring rotates it around the Z-axis.
+ * - A 3D look with perspective, lighting, and 3D text.
+ * - Tweened snap over 300 ms after mouse release, then merges.
  ***********************************************************/
 
 // Constants
 const NUM_SEGMENTS = 12;
 const SEGMENT_ANGLE = 360 / NUM_SEGMENTS;
-const CIRCLE_RADII = [200, 130, 70]; // Outer -> Inner
+const CIRCLE_RADII = [200, 130, 70]; // Outer to inner
 
-// "Phaser-like" colors + highlight
+// Colors
 const P5_COLORS = [
   [231, 76, 60],   // red
   [52, 152, 219],  // blue
@@ -40,15 +38,17 @@ const ALLOWED_NUMBERS = [
   12, 16, 20, 24, 32, 40, 48, 64
 ];
 
-// Each circle:
+// Each circle object:
 // {
-//   numbers: number[], offset: number,
-//   currentRotation: number, targetRotation: number,
-//   startRotation: number, tweenStartTime: number,
-//   tweening: boolean
+//   numbers: [],       // each segment's value
+//   offset: 0,
+//   currentRotation: 0,
+//   targetRotation: 0,
+//   startRotation: 0,
+//   tweenStartTime: 0,
+//   tweening: false
 // }
 let circles = [];
-
 let score = 0;
 
 // Interaction
@@ -57,13 +57,11 @@ let dragStartAngle = 0;
 let circleStartAngle = 0;
 let hasRotated = false;
 
-// Highlights: { circleIndex, segmentIndex, expiresAt }
+// Highlight info: { circleIndex, segmentIndex, expiresAt }
 let highlightedSegments = [];
 
-/*******************************************************
- *                      SETUP
- *******************************************************/
 function setup() {
+  // Use WEBGL for 3D
   createCanvas(800, 600, WEBGL);
   angleMode(DEGREES);
   textAlign(CENTER, CENTER);
@@ -72,48 +70,45 @@ function setup() {
   ensureNoInitialMerges();
 }
 
-/*******************************************************
- *                      DRAW LOOP
- *******************************************************/
 function draw() {
   background(50);
 
   // Basic 3D environment
-  orbitControl();            // optional camera orbit
-  directionalLight(255, 255, 255, 0.5, 0.5, -1); 
+  orbitControl();               // Optional camera orbit/pan with mouse
+  directionalLight(255, 255, 255, 0.5, 0.5, -1);
   ambientLight(60);
 
-  // Score in top-left corner (2D overlay trick)
+  // Draw score in a 2D overlay
   push();
-  resetMatrix(); 
+  resetMatrix(); // Resets to default top-left 2D coordinate system
   fill(255);
   textSize(24);
-  text(`Score: ${score}`, 110, 40);
+  text('Score: ' + score, 110, 40);
   pop();
 
-  // Filter out expired highlights
+  // Remove expired highlights
   const now = millis();
   highlightedSegments = highlightedSegments.filter(h => now < h.expiresAt);
 
-  // Update ring tweening (snap animations)
   updateCircleTweens();
 
-  // Draw each ring
+  // Draw each circle as a ring of wedges
   for (let i = 0; i < circles.length; i++) {
     drawCircle3D(i);
   }
 }
 
 /*******************************************************
- *          CIRCLE INIT & CHECKS (unchanged logic)
+ *            Circle Initialization & Checks
  *******************************************************/
+
 function initCircles() {
   circles = [];
   score = 0;
   for (let i = 0; i < CIRCLE_RADII.length; i++) {
-    const nums = generateRandomNumbers(i);
+    let arr = generateRandomNumbers(i);
     circles.push({
-      numbers: nums,
+      numbers: arr,
       offset: 0,
       currentRotation: 0,
       targetRotation: 0,
@@ -166,64 +161,56 @@ function checkForMergeableNumbers() {
 }
 
 /*******************************************************
- *                  DRAWING THE RINGS
+ *               3D Drawing / Rendering
  *******************************************************/
-/**
- * Draws one circle as a "shiny" extruded ring with 12 wedges.
- * Each wedge is subdivided more finely for smoothness (a+=1).
- */
+
 function drawCircle3D(circleIndex) {
-  const cData = circles[circleIndex];
+  const circleData = circles[circleIndex];
   const r = CIRCLE_RADII[circleIndex];
 
   push();
-  // Separate circles along Z so they don't overlap visually
+  // Slightly raise each circle so they're not z-fighting
   translate(0, 0, circleIndex * 10);
+  rotateZ(circleData.currentRotation);
 
-  // Rotate around Z axis
-  rotateZ(cData.currentRotation);
-
-  // Extrude thickness
-  const thickness = 20;
+  const thickness = 20; // thickness of ring
 
   for (let s = 0; s < NUM_SEGMENTS; s++) {
     let angleStart = s * SEGMENT_ANGLE;
     let angleEnd = (s + 1) * SEGMENT_ANGLE;
 
-    // Actual segment index
-    let segIndex = (cData.offset + s) % NUM_SEGMENTS;
-    let val = cData.numbers[segIndex];
+    let segIndex = (circleData.offset + s) % NUM_SEGMENTS;
+    let val = circleData.numbers[segIndex];
 
     // Check highlight
     let isHighlighted = highlightedSegments.some(h =>
       h.circleIndex === circleIndex && h.segmentIndex === segIndex
     );
 
-    // Choose color + material
-    push();
+    // Material color
     let baseC = P5_COLORS[circleIndex % P5_COLORS.length];
-    shininess(80); // how glossy the surface is
     if (isHighlighted) {
-      specularMaterial(HIGHLIGHT_COLOR[0], HIGHLIGHT_COLOR[1], HIGHLIGHT_COLOR[2]);
+      ambientMaterial(HIGHLIGHT_COLOR[0], HIGHLIGHT_COLOR[1], HIGHLIGHT_COLOR[2]);
     } else {
-      specularMaterial(baseC[0], baseC[1], baseC[2]);
+      ambientMaterial(baseC[0], baseC[1], baseC[2]);
     }
 
-    // Draw the wedge with finer steps (a += 1)
+    push();
     rotateZ(angleStart);
 
+    // Top Face
     beginShape();
     vertex(0, 0, thickness / 2);
-    for (let a = 0; a <= (angleEnd - angleStart); a += 1) {
+    for (let a = 0; a <= (angleEnd - angleStart); a += 5) {
       let xx = r * cos(a);
       let yy = r * sin(a);
       vertex(xx, yy, thickness / 2);
     }
     endShape(CLOSE);
 
-    // Outer side (quad strip)
+    // Side
     beginShape(QUAD_STRIP);
-    for (let a = 0; a <= (angleEnd - angleStart); a += 1) {
+    for (let a = 0; a <= (angleEnd - angleStart); a += 5) {
       let xx = r * cos(a);
       let yy = r * sin(a);
       vertex(xx, yy, thickness / 2);
@@ -231,64 +218,50 @@ function drawCircle3D(circleIndex) {
     }
     endShape();
 
-    // Bottom face
+    // Bottom Face
     beginShape();
     vertex(0, 0, -thickness / 2);
-    for (let a = 0; a <= (angleEnd - angleStart); a += 1) {
+    for (let a = 0; a <= (angleEnd - angleStart); a += 5) {
       let xx = r * cos(a);
       let yy = r * sin(a);
       vertex(xx, yy, -thickness / 2);
     }
     endShape(CLOSE);
 
-    // Draw the text ON TOP of everything, so disable depth for a moment
-    // We'll place text at the midpoint of the wedge
+    // 3D text label (2D billboard in 3D)
     let midAngle = angleStart + SEGMENT_ANGLE * 0.5;
     let tx = r * 0.75 * cos(midAngle);
     let ty = r * 0.75 * sin(midAngle);
-
-    // E.g., 10% of radius, min 12
     let fontSize = max(r * 0.05, 12);
 
-    // Lift it slightly above top face
     push();
-    translate(tx, ty, thickness / 2 + 2);
-    // rotate text to face outward
-    rotateZ(midAngle + 90);
-
-    // Temporarily disable depth test so text isn't hidden
-    hint(DISABLE_DEPTH_TEST);
+    translate(tx, ty, thickness / 2 + 1);
+    rotateZ(90 + midAngle);
     fill(255);
     noStroke();
     textSize(fontSize);
-    text(`${val}`, 0, 0);
-    hint(ENABLE_DEPTH_TEST);
-    pop(); // text
+    text('' + val, 0, 0);
+    pop();
 
-    pop(); // wedge
+    pop();
   }
 
-  pop(); // ring
+  pop();
 }
 
 /*******************************************************
- *                MOUSE INTERACTION
+ *               Mouse Interaction
  *******************************************************/
-/**
- * For simplicity, we treat the puzzle as in XY-plane, ignoring
- * major camera transforms for picking. For robust picking,
- * do a ray-plane intersection.
- */
+
 function mousePressed() {
   const [mx, my] = screenToPuzzle(mouseX, mouseY);
   let distFromCenter = sqrt(mx * mx + my * my);
-
   hasRotated = false;
   activeCircleIndex = null;
 
   for (let i = 0; i < CIRCLE_RADII.length; i++) {
     const outerR = CIRCLE_RADII[i];
-    const innerR = (i < CIRCLE_RADII.length - 1) ? CIRCLE_RADII[i + 1] : 0;
+    const innerR = i < CIRCLE_RADII.length - 1 ? CIRCLE_RADII[i + 1] : 0;
     if (distFromCenter <= outerR && distFromCenter > innerR) {
       activeCircleIndex = i;
       let angle = degrees(atan2(my, mx));
@@ -300,38 +273,38 @@ function mousePressed() {
 }
 
 function mouseDragged() {
-  if (activeCircleIndex == null) return;
+  if (activeCircleIndex === null) return;
   const [mx, my] = screenToPuzzle(mouseX, mouseY);
   let angle = degrees(atan2(my, mx));
   let delta = angle - dragStartAngle;
 
   if (delta > 180) delta -= 360;
   if (delta < -180) delta += 360;
+  if (abs(delta) > 1) hasRotated = true;
 
-  if (abs(delta) > 1) {
-    hasRotated = true;
-  }
   circles[activeCircleIndex].currentRotation = circleStartAngle + delta;
 }
 
 function mouseReleased() {
-  if (activeCircleIndex == null) return;
+  if (activeCircleIndex === null) return;
+
   if (hasRotated) {
     let c = circles[activeCircleIndex];
     let finalRot = c.currentRotation;
     let snapped = round(finalRot / SEGMENT_ANGLE) * SEGMENT_ANGLE;
-
     c.startRotation = finalRot;
     c.targetRotation = snapped;
     c.tweenStartTime = millis();
     c.tweening = true;
   }
+
   activeCircleIndex = null;
 }
 
 /*******************************************************
- *                     TWEENING
+ *               Tweening & Merging
  *******************************************************/
+
 function updateCircleTweens() {
   const now = millis();
   for (let i = 0; i < circles.length; i++) {
@@ -341,13 +314,11 @@ function updateCircleTweens() {
       if (t >= 1.0) {
         c.currentRotation = c.targetRotation;
         c.tweening = false;
-
         let offsetDelta = round(c.targetRotation / SEGMENT_ANGLE);
         c.offset = (c.offset + offsetDelta + NUM_SEGMENTS) % NUM_SEGMENTS;
         c.currentRotation = 0;
         c.startRotation = 0;
         c.targetRotation = 0;
-
         performMergePass();
       } else {
         c.currentRotation = lerp(c.startRotation, c.targetRotation, t);
@@ -356,40 +327,27 @@ function updateCircleTweens() {
   }
 }
 
-/*******************************************************
- *                     MERGING
- *******************************************************/
 function performMergePass() {
   let recentlyMerged = {};
-  function key(ci, si) {
-    return `${ci}-${si}`;
-  }
+  function key(ci, si) { return ci + '-' + si; }
 
   for (let i = 0; i < circles.length - 1; i++) {
     for (let s = 0; s < NUM_SEGMENTS; s++) {
-      let A = circles[i];
-      let B = circles[i + 1];
-
+      let A = circles[i], B = circles[i + 1];
       let segA = (A.offset + s) % NUM_SEGMENTS;
       let segB = (B.offset + s) % NUM_SEGMENTS;
-
       let valA = A.numbers[segA];
       let valB = B.numbers[segB];
 
-      if (
-        valA === valB &&
-        !recentlyMerged[key(i, segA)] &&
-        !recentlyMerged[key(i + 1, segB)]
-      ) {
+      if (valA === valB &&
+          !recentlyMerged[key(i, segA)] &&
+          !recentlyMerged[key(i + 1, segB)]) {
         let newVal = valB * 2;
         B.numbers[segB] = newVal;
         A.numbers[segA] = random(ALLOWED_NUMBERS);
-
         score += newVal;
-
         recentlyMerged[key(i, segA)] = true;
         recentlyMerged[key(i + 1, segB)] = true;
-
         highlightSegment(i, segA, 1000);
         highlightSegment(i + 1, segB, 1000);
       }
@@ -406,17 +364,13 @@ function highlightSegment(circleIndex, segmentIndex, durationMs) {
   });
 }
 
-/*******************************************************
- *               BASIC SCREEN->PUZZLE PICKING
- *******************************************************/
 /**
- * Approximate: we treat the puzzle as if it’s in the XY-plane 
- * at the origin. For a truly robust 3D pick, do a ray-plane intersection.
+ * Approximate "screen to puzzle plane" function for picking.
+ * This is a simple approach ignoring camera transforms.
  */
 function screenToPuzzle(sx, sy) {
   let cx = sx - width / 2;
   let cy = sy - height / 2;
-  // In p5 WEBGL, Y is downward, we simply return (cx, cy).
   return [cx, cy];
 }
 </script>
