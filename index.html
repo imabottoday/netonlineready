@@ -219,9 +219,11 @@ function drawCircle3D(circleIndex) {
           rectMode(CENTER);
           const fontSize = max(r * 0.06, 16); // slightly larger font size
           textSize(fontSize);
-          let textWidth = textWidth(val);
+
+          // Calculate text width correctly
+          const textWidthVal = textWidth(val);
           let textHeight = fontSize * 1.5;
-          rect(0, 0, textWidth + 10, textHeight);
+          rect(0, 0, textWidthVal + 10, textHeight);
 
           // Draw the text with a shadow for readability
           fill(255);
