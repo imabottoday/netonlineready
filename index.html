@@ -3,11 +3,15 @@
 <head>
   <meta charset="UTF-8" />
   <title>3D Concentric Circles Puzzle</title>
-  <!-- Load p5.js (with WEBGL support) from CDN -->
+  <!-- p5.js with WEBGL -->
   <script src="https://cdn.jsdelivr.net/npm/p5@1.6.0/lib/p5.min.js"></script>
 </head>
 <body>
 <script>
+
+// =========== 1) Global reference for the loaded font ===========
+let puzzleFont;
+
 /***********************************************************
  * 3D Concentric Circle Puzzle in p5.js WEBGL (Single File)
  * ---------------------------------------------------------
@@ -60,10 +64,18 @@ let hasRotated = false;
 // Highlight info: { circleIndex, segmentIndex, expiresAt }
 let highlightedSegments = [];
 
+// =========== 2) Preload the font (runs before setup) ===========
+function preload() {
+  // Example: loading Roboto Medium from GitHub
+  puzzleFont = loadFont('https://raw.githubusercontent.com/google/fonts/main/apache/roboto/Roboto-Medium.ttf');
+}
+
 function setup() {
-  // Use WEBGL for 3D
   createCanvas(800, 600, WEBGL);
   angleMode(DEGREES);
+
+  // =========== 3) Set the active font in WEBGL mode ===========
+  textFont(puzzleFont);
   textAlign(CENTER, CENTER);
 
   initCircles();
@@ -74,7 +86,7 @@ function draw() {
   background(50);
 
   // Basic 3D environment
-  orbitControl();               // Optional camera orbit/pan with mouse
+  orbitControl();  // Optional camera orbit/pan with mouse
   directionalLight(255, 255, 255, 0.5, 0.5, -1);
   ambientLight(60);
 
@@ -228,9 +240,7 @@ function drawCircle3D(circleIndex) {
     }
     endShape(CLOSE);
 
-    // ============================
-    // 3D text label (CHANGED here)
-    // ============================
+    // 3D text label
     let midAngle = angleStart + SEGMENT_ANGLE * 0.5;
     let tx = r * 0.75 * cos(midAngle);
     let ty = r * 0.75 * sin(midAngle);
@@ -239,18 +249,14 @@ function drawCircle3D(circleIndex) {
     let fontSize = max(r * 0.06, 14);
 
     push();
-      // Push the text label further away from the ring surface
-      // so it's not occluded by geometry
       translate(tx, ty, thickness + 5);
-
-      // Rotate to face the camera more directly
-      // (we negate midAngle so text is upright relative to the camera)
       rotateZ(-midAngle);
 
       noStroke();
       fill(255);
       textSize(fontSize);
-      text('' + val, 0, 0);
+      // Because we set textFont() in setup(), now we can draw text
+      text(val, 0, 0);
     pop();
 
     pop();
