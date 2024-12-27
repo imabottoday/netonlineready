@@ -213,11 +213,21 @@ function drawCircle3D(circleIndex) {
           // Invert text rotation so it appears upright
           rotateZ(-midAngle);
 
-          // Slightly smaller text to ensure it's fully on the wedge
-          fill(255);
-          const fontSize = max(r * 0.05, 14);
+          // Add a background rectangle for better contrast
+          noStroke();
+          fill(0, 0, 0, 150); // semi-transparent black
+          rectMode(CENTER);
+          const fontSize = max(r * 0.06, 16); // slightly larger font size
           textSize(fontSize);
+          let textWidth = textWidth(val);
+          let textHeight = fontSize * 1.5;
+          rect(0, 0, textWidth + 10, textHeight);
+
+          // Draw the text with a shadow for readability
+          fill(255);
+          textFont(puzzleFont, fontSize);
           text(val, 0, 0);
+
         pop();
 
       pop(); // end wedge s
