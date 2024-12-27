@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <title>3D Concentric Circles Puzzle (Tweaked)</title>
+  <title>3D Concentric Circles Puzzle</title>
   <!-- p5.js with WEBGL -->
   <script src="https://cdn.jsdelivr.net/npm/p5@1.6.0/lib/p5.min.js"></script>
 </head>
@@ -39,8 +39,8 @@ let score = 0;
 
 // Interaction
 let activeCircleIndex = null;
-let dragStartAngle = 0;   // angle at mouse press
-let circleStartAngle = 0; // circle's rotation at mouse press
+let dragStartAngle = 0;
+let circleStartAngle = 0;
 let hasRotated = false;
 
 // Highlight info
@@ -51,7 +51,7 @@ let highlightedSegments = [];
  * ----------------------------------------*/
 function preload() {
   // Load a TTF file from the same folder as index.html.
-  // Make sure "Roboto-Medium.ttf" (or another) is in your project's directory.
+  // Make sure "Roboto-Medium.ttf" is in your project's directory.
   puzzleFont = loadFont('Roboto-Medium.ttf');
 }
 
@@ -59,7 +59,9 @@ function setup() {
   createCanvas(800, 600, WEBGL);
   angleMode(DEGREES);
 
-  // Use the loaded font in WEBGL
+  // Provide a more stable camera perspective:
+  perspective(60, width / height, 0.1, 5000);
+
   textFont(puzzleFont);
   textAlign(CENTER, CENTER);
 
@@ -70,16 +72,14 @@ function setup() {
 function draw() {
   background(50);
 
-  // Provide some simpler orbit control but with lower sensitivity
-  // so the user doesn't spin the scene too wildly.
-  orbitControl(0.7, 0.7);
-
+  // Basic 3D environment
+  orbitControl();
   directionalLight(255, 255, 255, 0.5, 0.5, -1);
   ambientLight(60);
 
   // Draw score in 2D overlay
   push();
-    resetMatrix(); // top-left 2D
+    resetMatrix(); // Return to top-left 2D drawing
     fill(255);
     textSize(24);
     text('Score: ' + score, 110, 40);
@@ -167,8 +167,8 @@ function drawCircle3D(circleIndex) {
   const thickness = 20;
 
   push();
-    // Slightly raise each circle so they're not z-fighting
-    translate(0, 0, circleIndex * 10);
+    // Elevate each circle more to avoid overlap or flicker
+    translate(0, 0, circleIndex * 20);
 
     // Rotate the entire circle by its current rotation
     rotateZ(circleData.currentRotation);
@@ -196,42 +196,42 @@ function drawCircle3D(circleIndex) {
           ambientMaterial(baseColor[0], baseColor[1], baseColor[2]);
         }
 
-        // Draw the wedge (0 to SEGMENT_ANGLE) in local space
+        // Draw the wedge from 0 to SEGMENT_ANGLE in local coordinates
         drawWedgeLocal(r, thickness, SEGMENT_ANGLE);
 
-        // Now place the text above the ring, at the midpoint angle
+        // Place the text at the midpoint of the wedge
         const midAngle = SEGMENT_ANGLE * 0.5;
-        const tx = r * 0.75 * cos(midAngle);
-        const ty = r * 0.75 * sin(midAngle);
+
+        // Move text a bit farther outward so it's fully visible
+        const tx = r * 0.8 * cos(midAngle);
+        const ty = r * 0.8 * sin(midAngle);
 
         push();
-          // Lift text higher so it's fully visible
-          translate(tx, ty, thickness + 15);
+          // Raise the text a bit more above the wedge for clarity
+          translate(tx, ty, thickness * 1.25);
 
-          // Rotate text so it's upright
+          // Invert text rotation so it appears upright
           rotateZ(-midAngle);
 
+          // Slightly smaller text to ensure it's fully on the wedge
           fill(255);
-          // Adjust font size or scale for readability
-          const fontSize = max(r * 0.06, 16);
+          const fontSize = max(r * 0.05, 14);
           textSize(fontSize);
-
-          // Possibly scale down the wedge text if you want less overlap
-          // or keep it big for readability
           text(val, 0, 0);
         pop();
 
-      pop(); // wedge
+      pop(); // end wedge s
     }
-  pop(); // circle
+  pop();
 }
 
 /**
- * Draw a single wedge from local angle=0 to local angle=wedgeAngle,
- * in small increments to reduce visual "choppiness" when rotating large angles.
+ * Draw a single wedge from local angle=0 to local angle=wedgeAngle.
+ * We do everything in local space, so we do not pass angleStart/angleEnd.
  */
 function drawWedgeLocal(r, thickness, wedgeAngle) {
-  const step = 2; // smaller step => smoother geometry
+  const step = 5; // step for approximating the arc
+
   // Top Face
   beginShape();
   vertex(0, 0, thickness / 2);
@@ -277,12 +277,11 @@ function mousePressed() {
     const innerR = i < CIRCLE_RADII.length - 1 ? CIRCLE_RADII[i + 1] : 0;
     if (distFromCenter <= outerR && distFromCenter > innerR) {
       activeCircleIndex = i;
-
-      // We'll invert the rotation direction by switching the sign.
-      // Old code: dragStartAngle = angle - circles[i].currentRotation;
-      // Let's do the opposite to invert direction.
       let angle = degrees(atan2(my, mx));
-      dragStartAngle = circles[i].currentRotation - angle;
+
+      // Instead of "angle - currentRotation",
+      // invert sign to fix the "reverse" feeling
+      dragStartAngle = angle + circles[i].currentRotation;
 
       circleStartAngle = circles[i].currentRotation;
       break;
@@ -295,12 +294,10 @@ function mouseDragged() {
   const [mx, my] = screenToPuzzle(mouseX, mouseY);
   let angle = degrees(atan2(my, mx));
 
-  // Because we inverted the sign above, let's compute delta accordingly
-  let delta = dragStartAngle + angle; 
-  // We also slow down rotation by a factor, e.g. 0.5
-  delta *= 0.5;
+  // The difference is inverted so rotation goes in the opposite direction
+  let delta = -(angle - dragStartAngle);
 
-  // Keep delta in -180..180 (optional)
+  // Keep delta in -180..180
   if (delta > 180) delta -= 360;
   if (delta < -180) delta += 360;
 
@@ -315,9 +312,7 @@ function mouseReleased() {
   if (hasRotated) {
     const c = circles[activeCircleIndex];
     const finalRot = c.currentRotation;
-    // Snap to nearest wedge
     const snapped = round(finalRot / SEGMENT_ANGLE) * SEGMENT_ANGLE;
-
     c.startRotation = finalRot;
     c.targetRotation = snapped;
     c.tweenStartTime = millis();
@@ -335,8 +330,9 @@ function updateCircleTweens() {
   for (let i = 0; i < circles.length; i++) {
     let c = circles[i];
     if (c.tweening) {
-      // slow down tween by increasing duration
-      const t = (now - c.tweenStartTime) / 600.0; 
+      // Increase duration for a slower, smoother snap
+      const duration = 600.0; 
+      const t = (now - c.tweenStartTime) / duration;
       if (t >= 1.0) {
         // Snap complete
         c.currentRotation = c.targetRotation;
@@ -360,6 +356,7 @@ function updateCircleTweens() {
 }
 
 function performMergePass() {
+  // DO NOT TOUCH - merges remain the same
   let recentlyMerged = {};
   function key(ci, si) { return ci + '-' + si; }
 
@@ -380,7 +377,7 @@ function performMergePass() {
         // For example, multiply by 2 in B, or any custom logic
         let newVal = valB * 2;
         B.numbers[segB] = newVal;
-        // Replace A's number with a random
+        // Replace A's number with a new random, or zero, etc.
         A.numbers[segA] = random(ALLOWED_NUMBERS);
 
         score += newVal;
@@ -406,8 +403,9 @@ function highlightSegment(circleIndex, segmentIndex, durationMs) {
 }
 
 /**
- * Approximate "screen to puzzle plane" function for picking.
- * This is a simple approach ignoring camera transforms.
+ * Simple approximate "screen to puzzle plane" function.
+ * This is a simplified approach ignoring the full 3D camera transform,
+ * but it works for typical top-down puzzle usage.
  */
 function screenToPuzzle(sx, sy) {
   let cx = sx - width / 2;
@@ -415,6 +413,5 @@ function screenToPuzzle(sx, sy) {
   return [cx, cy];
 }
 </script>
-
 </body>
 </html>
