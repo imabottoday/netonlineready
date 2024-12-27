@@ -1,33 +1,23 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
+  <meta charset="UTF-8">
   <title>3D Concentric Circles Puzzle</title>
   <!-- p5.js with WEBGL -->
   <script src="https://cdn.jsdelivr.net/npm/p5@1.6.0/lib/p5.min.js"></script>
 </head>
 <body>
 <script>
-
-// =========== 1) Global reference for the loaded font ===========
-let puzzleFont;
-
-/***********************************************************
- * 3D Concentric Circle Puzzle in p5.js WEBGL (Single File)
- * ---------------------------------------------------------
- * - Three concentric rings, each with 12 segments.
- * - Single-pass merge, highlight merges in gold, scoring.
- * - "Dragging" a ring rotates it around the Z-axis.
- * - A 3D look with perspective, lighting, and 3D text.
- * - Tweened snap over 300 ms after mouse release, then merges.
- ***********************************************************/
+// --------------------------------------------------------
+//  GLOBALS
+// --------------------------------------------------------
+let puzzleFont; // We'll load a font in preload()
 
 // Constants
 const NUM_SEGMENTS = 12;
 const SEGMENT_ANGLE = 360 / NUM_SEGMENTS;
 const CIRCLE_RADII = [200, 130, 70]; // Outer to inner
 
-// Colors
 const P5_COLORS = [
   [231, 76, 60],   // red
   [52, 152, 219],  // blue
@@ -42,16 +32,7 @@ const ALLOWED_NUMBERS = [
   12, 16, 20, 24, 32, 40, 48, 64
 ];
 
-// Each circle object:
-// {
-//   numbers: [],       // each segment's value
-//   offset: 0,
-//   currentRotation: 0,
-//   targetRotation: 0,
-//   startRotation: 0,
-//   tweenStartTime: 0,
-//   tweening: false
-// }
+// Circle data structure
 let circles = [];
 let score = 0;
 
@@ -61,12 +42,16 @@ let dragStartAngle = 0;
 let circleStartAngle = 0;
 let hasRotated = false;
 
-// Highlight info: { circleIndex, segmentIndex, expiresAt }
+// Highlight info
 let highlightedSegments = [];
 
-// =========== 2) Preload the font (runs before setup) ===========
+// --------------------------------------------------------
+//  FONT LOADING
+// --------------------------------------------------------
 function preload() {
-  // Example: loading Roboto Medium from GitHub
+  // Load a TTF file from the same folder as index.html.
+  // Make sure "Roboto-Medium.ttf" is actually in your repo
+  // at the same directory level as this HTML file.
   puzzleFont = loadFont('Roboto-Medium.ttf');
 }
 
@@ -74,7 +59,7 @@ function setup() {
   createCanvas(800, 600, WEBGL);
   angleMode(DEGREES);
 
-  // =========== 3) Set the active font in WEBGL mode ===========
+  // Use the loaded font in WEBGL mode
   textFont(puzzleFont);
   textAlign(CENTER, CENTER);
 
@@ -86,16 +71,16 @@ function draw() {
   background(50);
 
   // Basic 3D environment
-  orbitControl();  // Optional camera orbit/pan with mouse
+  orbitControl();  
   directionalLight(255, 255, 255, 0.5, 0.5, -1);
   ambientLight(60);
 
-  // Draw score in a 2D overlay
+  // Draw score in 2D overlay
   push();
-  resetMatrix(); // Resets to default top-left 2D coordinate system
-  fill(255);
-  textSize(24);
-  text('Score: ' + score, 110, 40);
+    resetMatrix(); // Reset to top-left 2D
+    fill(255);
+    textSize(24);
+    text('Score: ' + score, 110, 40);
   pop();
 
   // Remove expired highlights
@@ -104,16 +89,15 @@ function draw() {
 
   updateCircleTweens();
 
-  // Draw each circle as a ring of wedges
+  // Draw each circle
   for (let i = 0; i < circles.length; i++) {
     drawCircle3D(i);
   }
 }
 
-/*******************************************************
- *            Circle Initialization & Checks
- *******************************************************/
-
+/* -----------------------------------------
+ *  Circle Initialization & Checks
+ * ----------------------------------------*/
 function initCircles() {
   circles = [];
   score = 0;
@@ -161,8 +145,8 @@ function ensureNoInitialMerges() {
 
 function checkForMergeableNumbers() {
   for (let i = 0; i < circles.length - 1; i++) {
-    let A = circles[i];
-    let B = circles[i + 1];
+    const A = circles[i];
+    const B = circles[i + 1];
     for (let s = 0; s < NUM_SEGMENTS; s++) {
       let valA = A.numbers[(A.offset + s) % NUM_SEGMENTS];
       let valB = B.numbers[(B.offset + s) % NUM_SEGMENTS];
@@ -172,106 +156,113 @@ function checkForMergeableNumbers() {
   return false;
 }
 
-/*******************************************************
- *               3D Drawing / Rendering
- *******************************************************/
-
+/* -----------------------------------------
+ *  3D Drawing / Rendering
+ * ----------------------------------------*/
 function drawCircle3D(circleIndex) {
   const circleData = circles[circleIndex];
   const r = CIRCLE_RADII[circleIndex];
+  const thickness = 20;
 
   push();
-  // Slightly raise each circle so they're not z-fighting
-  translate(0, 0, circleIndex * 10);
-  rotateZ(circleData.currentRotation);
+    // Slightly raise each circle so they're not z-fighting
+    translate(0, 0, circleIndex * 10);
+    rotateZ(circleData.currentRotation);
 
-  const thickness = 20; // thickness of ring
+    // Loop through segments
+    for (let s = 0; s < NUM_SEGMENTS; s++) {
+      const angleStart = s * SEGMENT_ANGLE;
+      const angleEnd = (s + 1) * SEGMENT_ANGLE;
+      const segIndex = (circleData.offset + s) % NUM_SEGMENTS;
+      const val = circleData.numbers[segIndex];
 
-  for (let s = 0; s < NUM_SEGMENTS; s++) {
-    let angleStart = s * SEGMENT_ANGLE;
-    let angleEnd = (s + 1) * SEGMENT_ANGLE;
+      // Check highlight
+      const isHighlighted = highlightedSegments.some(h =>
+        h.circleIndex === circleIndex && h.segmentIndex === segIndex
+      );
 
-    let segIndex = (circleData.offset + s) % NUM_SEGMENTS;
-    let val = circleData.numbers[segIndex];
+      // Choose color
+      const baseC = P5_COLORS[circleIndex % P5_COLORS.length];
+      push();
+        rotateZ(angleStart);
 
-    // Check highlight
-    let isHighlighted = highlightedSegments.some(h =>
-      h.circleIndex === circleIndex && h.segmentIndex === segIndex
-    );
+        // Apply material
+        if (isHighlighted) {
+          ambientMaterial(HIGHLIGHT_COLOR[0], HIGHLIGHT_COLOR[1], HIGHLIGHT_COLOR[2]);
+        } else {
+          ambientMaterial(baseC[0], baseC[1], baseC[2]);
+        }
 
-    // Material color
-    let baseC = P5_COLORS[circleIndex % P5_COLORS.length];
-    if (isHighlighted) {
-      ambientMaterial(HIGHLIGHT_COLOR[0], HIGHLIGHT_COLOR[1], HIGHLIGHT_COLOR[2]);
-    } else {
-      ambientMaterial(baseC[0], baseC[1], baseC[2]);
+        // Draw geometry for this wedge
+        drawWedge(r, thickness, angleStart, angleEnd);
+      pop();
+
+      // Now draw text in a separate transform
+      // We'll place it at the midpoint angle and radius
+      const midAngle = angleStart + SEGMENT_ANGLE * 0.5;
+      const tx = r * 0.75 * cos(midAngle);
+      const ty = r * 0.75 * sin(midAngle);
+      const fontSize = max(r * 0.06, 14);
+
+      push();
+        // Translate to mid-angle position, above the ring
+        translate(tx, ty, thickness + 5);
+
+        // Rotate text so it faces "outward" or "upright"
+        // We do negative midAngle to keep it upright from the camera's perspective
+        rotateZ(-midAngle);
+
+        noStroke();
+        fill(255);
+        textSize(fontSize);
+        text(val, 0, 0);
+      pop();
     }
-
-    push();
-    rotateZ(angleStart);
-
-    // Top Face
-    beginShape();
-    vertex(0, 0, thickness / 2);
-    for (let a = 0; a <= (angleEnd - angleStart); a += 5) {
-      let xx = r * cos(a);
-      let yy = r * sin(a);
-      vertex(xx, yy, thickness / 2);
-    }
-    endShape(CLOSE);
-
-    // Side
-    beginShape(QUAD_STRIP);
-    for (let a = 0; a <= (angleEnd - angleStart); a += 5) {
-      let xx = r * cos(a);
-      let yy = r * sin(a);
-      vertex(xx, yy, thickness / 2);
-      vertex(xx, yy, -thickness / 2);
-    }
-    endShape();
-
-    // Bottom Face
-    beginShape();
-    vertex(0, 0, -thickness / 2);
-    for (let a = 0; a <= (angleEnd - angleStart); a += 5) {
-      let xx = r * cos(a);
-      let yy = r * sin(a);
-      vertex(xx, yy, -thickness / 2);
-    }
-    endShape(CLOSE);
-
-    // 3D text label
-    let midAngle = angleStart + SEGMENT_ANGLE * 0.5;
-    let tx = r * 0.75 * cos(midAngle);
-    let ty = r * 0.75 * sin(midAngle);
-
-    // Slightly bigger font to ensure visibility
-    let fontSize = max(r * 0.06, 14);
-
-    push();
-      translate(tx, ty, thickness + 5);
-      rotateZ(-midAngle);
-
-      noStroke();
-      fill(255);
-      textSize(fontSize);
-      // Because we set textFont() in setup(), now we can draw text
-      text(val, 0, 0);
-    pop();
-
-    pop();
-  }
-
   pop();
 }
 
-/*******************************************************
- *               Mouse Interaction
- *******************************************************/
+/**
+ * Draw a single wedge geometry from angleStart to angleEnd,
+ * using the given radius and thickness.
+ */
+function drawWedge(r, thickness, angleStart, angleEnd) {
+  // Top Face
+  beginShape();
+  vertex(0, 0, thickness / 2);
+  for (let a = 0; a <= (angleEnd - angleStart); a += 5) {
+    let xx = r * cos(a);
+    let yy = r * sin(a);
+    vertex(xx, yy, thickness / 2);
+  }
+  endShape(CLOSE);
 
+  // Side
+  beginShape(QUAD_STRIP);
+  for (let a = 0; a <= (angleEnd - angleStart); a += 5) {
+    let xx = r * cos(a);
+    let yy = r * sin(a);
+    vertex(xx, yy, thickness / 2);
+    vertex(xx, yy, -thickness / 2);
+  }
+  endShape();
+
+  // Bottom Face
+  beginShape();
+  vertex(0, 0, -thickness / 2);
+  for (let a = 0; a <= (angleEnd - angleStart); a += 5) {
+    let xx = r * cos(a);
+    let yy = r * sin(a);
+    vertex(xx, yy, -thickness / 2);
+  }
+  endShape(CLOSE);
+}
+
+/* -----------------------------------------
+ *  Mouse Interaction
+ * ----------------------------------------*/
 function mousePressed() {
   const [mx, my] = screenToPuzzle(mouseX, mouseY);
-  let distFromCenter = sqrt(mx * mx + my * my);
+  const distFromCenter = sqrt(mx * mx + my * my);
   hasRotated = false;
   activeCircleIndex = null;
 
@@ -305,9 +296,9 @@ function mouseReleased() {
   if (activeCircleIndex === null) return;
 
   if (hasRotated) {
-    let c = circles[activeCircleIndex];
-    let finalRot = c.currentRotation;
-    let snapped = round(finalRot / SEGMENT_ANGLE) * SEGMENT_ANGLE;
+    const c = circles[activeCircleIndex];
+    const finalRot = c.currentRotation;
+    const snapped = round(finalRot / SEGMENT_ANGLE) * SEGMENT_ANGLE;
     c.startRotation = finalRot;
     c.targetRotation = snapped;
     c.tweenStartTime = millis();
@@ -317,21 +308,22 @@ function mouseReleased() {
   activeCircleIndex = null;
 }
 
-/*******************************************************
- *               Tweening & Merging
- *******************************************************/
-
+/* -----------------------------------------
+ *  Tweening & Merging
+ * ----------------------------------------*/
 function updateCircleTweens() {
   const now = millis();
   for (let i = 0; i < circles.length; i++) {
     let c = circles[i];
     if (c.tweening) {
-      let t = (now - c.tweenStartTime) / 300.0;
+      const t = (now - c.tweenStartTime) / 300.0;
       if (t >= 1.0) {
         c.currentRotation = c.targetRotation;
         c.tweening = false;
+
         let offsetDelta = round(c.targetRotation / SEGMENT_ANGLE);
         c.offset = (c.offset + offsetDelta + NUM_SEGMENTS) % NUM_SEGMENTS;
+
         c.currentRotation = 0;
         c.startRotation = 0;
         c.targetRotation = 0;
@@ -349,11 +341,12 @@ function performMergePass() {
 
   for (let i = 0; i < circles.length - 1; i++) {
     for (let s = 0; s < NUM_SEGMENTS; s++) {
-      let A = circles[i], B = circles[i + 1];
-      let segA = (A.offset + s) % NUM_SEGMENTS;
-      let segB = (B.offset + s) % NUM_SEGMENTS;
-      let valA = A.numbers[segA];
-      let valB = B.numbers[segB];
+      const A = circles[i];
+      const B = circles[i + 1];
+      const segA = (A.offset + s) % NUM_SEGMENTS;
+      const segB = (B.offset + s) % NUM_SEGMENTS;
+      const valA = A.numbers[segA];
+      const valB = B.numbers[segB];
 
       if (valA === valB &&
           !recentlyMerged[key(i, segA)] &&
@@ -362,8 +355,10 @@ function performMergePass() {
         B.numbers[segB] = newVal;
         A.numbers[segA] = random(ALLOWED_NUMBERS);
         score += newVal;
+
         recentlyMerged[key(i, segA)] = true;
         recentlyMerged[key(i + 1, segB)] = true;
+
         highlightSegment(i, segA, 1000);
         highlightSegment(i + 1, segB, 1000);
       }
