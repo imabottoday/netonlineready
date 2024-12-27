@@ -228,19 +228,29 @@ function drawCircle3D(circleIndex) {
     }
     endShape(CLOSE);
 
-    // 3D text label (2D billboard in 3D)
+    // ============================
+    // 3D text label (CHANGED here)
+    // ============================
     let midAngle = angleStart + SEGMENT_ANGLE * 0.5;
     let tx = r * 0.75 * cos(midAngle);
     let ty = r * 0.75 * sin(midAngle);
-    let fontSize = max(r * 0.05, 12);
+
+    // Slightly bigger font to ensure visibility
+    let fontSize = max(r * 0.06, 14);
 
     push();
-    translate(tx, ty, thickness / 2 + 1);
-    rotateZ(90 + midAngle);
-    fill(255);
-    noStroke();
-    textSize(fontSize);
-    text('' + val, 0, 0);
+      // Push the text label further away from the ring surface
+      // so it's not occluded by geometry
+      translate(tx, ty, thickness + 5);
+
+      // Rotate to face the camera more directly
+      // (we negate midAngle so text is upright relative to the camera)
+      rotateZ(-midAngle);
+
+      noStroke();
+      fill(255);
+      textSize(fontSize);
+      text('' + val, 0, 0);
     pop();
 
     pop();
