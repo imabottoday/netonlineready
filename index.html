@@ -50,8 +50,6 @@ let highlightedSegments = [];
  *  FONT LOADING
  * ----------------------------------------*/
 function preload() {
-  // Load a TTF file from the same folder as index.html.
-  // Make sure "Roboto-Medium.ttf" is in your project's directory.
   puzzleFont = loadFont('Roboto-Medium.ttf');
 }
 
@@ -59,7 +57,6 @@ function setup() {
   createCanvas(800, 600, WEBGL);
   angleMode(DEGREES);
 
-  // Provide a more stable camera perspective:
   perspective(60, width / height, 0.1, 5000);
 
   textFont(puzzleFont);
@@ -72,17 +69,16 @@ function setup() {
 function draw() {
   background(50);
 
-  // Basic 3D environment
   orbitControl();
   directionalLight(255, 255, 255, 0.5, 0.5, -1);
   ambientLight(60);
 
-  // Draw score in 2D overlay
+  // Draw score
   push();
-    resetMatrix(); // Return to top-left 2D drawing
-    fill(255);
-    textSize(24);
-    text('Score: ' + score, 110, 40);
+  resetMatrix();
+  fill(255);
+  textSize(24);
+  text(`Score: ${score}`, 110, 40);
   pop();
 
   // Remove expired highlights
@@ -91,7 +87,6 @@ function draw() {
 
   updateCircleTweens();
 
-  // Draw each circle
   for (let i = 0; i < circles.length; i++) {
     drawCircle3D(i);
   }
@@ -140,9 +135,6 @@ function ensureNoInitialMerges() {
     initCircles();
     retries++;
   }
-  if (retries === 20) {
-    console.warn("Could not eliminate initial merges after 20 retries.");
-  }
 }
 
 function checkForMergeableNumbers() {
@@ -167,84 +159,58 @@ function drawCircle3D(circleIndex) {
   const thickness = 20;
 
   push();
-    // Elevate each circle more to avoid overlap or flicker
-    translate(0, 0, circleIndex * 20);
+  translate(0, 0, circleIndex * 20);
+  rotateZ(circleData.currentRotation);
 
-    // Rotate the entire circle by its current rotation
-    rotateZ(circleData.currentRotation);
+  for (let s = 0; s < NUM_SEGMENTS; s++) {
+    const segIndex = (circleData.offset + s) % NUM_SEGMENTS;
+    const val = circleData.numbers[segIndex];
 
-    // For each wedge:
-    for (let s = 0; s < NUM_SEGMENTS; s++) {
-      // Determine which value belongs to wedge s
-      const segIndex = (circleData.offset + s) % NUM_SEGMENTS;
-      const val = circleData.numbers[segIndex];
+    const isHighlighted = highlightedSegments.some(h =>
+      h.circleIndex === circleIndex && h.segmentIndex === segIndex
+    );
 
-      // Check if highlighted
-      const isHighlighted = highlightedSegments.some(h =>
-        h.circleIndex === circleIndex && h.segmentIndex === segIndex
-      );
+    push();
+    rotateZ(s * SEGMENT_ANGLE);
 
-      push();
-        // Rotate local coords so wedge s starts at local angle=0
-        rotateZ(s * SEGMENT_ANGLE);
-
-        // Apply base or highlight material
-        const baseColor = P5_COLORS[circleIndex % P5_COLORS.length];
-        if (isHighlighted) {
-          ambientMaterial(HIGHLIGHT_COLOR[0], HIGHLIGHT_COLOR[1], HIGHLIGHT_COLOR[2]);
-        } else {
-          ambientMaterial(baseColor[0], baseColor[1], baseColor[2]);
-        }
-
-        // Draw the wedge from 0 to SEGMENT_ANGLE in local coordinates
-        drawWedgeLocal(r, thickness, SEGMENT_ANGLE);
-
-        // Place the text at the midpoint of the wedge
-        const midAngle = SEGMENT_ANGLE * 0.5;
-
-        // Move text a bit farther outward so it's fully visible
-        const tx = r * 0.8 * cos(midAngle);
-        const ty = r * 0.8 * sin(midAngle);
-
-        push();
-          // Raise the text a bit more above the wedge for clarity
-          translate(tx, ty, thickness * 1.25);
-
-          // Invert text rotation so it appears upright
-          rotateZ(-midAngle);
-
-          // Add a background rectangle for better contrast
-          noStroke();
-          fill(0, 0, 0, 150); // semi-transparent black
-          rectMode(CENTER);
-          const fontSize = max(r * 0.06, 16); // slightly larger font size
-          textSize(fontSize);
-
-          // Calculate text width correctly
-          const textWidthVal = textWidth(val);
-          let textHeight = fontSize * 1.5;
-          rect(0, 0, textWidthVal + 10, textHeight);
-
-          // Draw the text with a shadow for readability
-          fill(255);
-          textFont(puzzleFont, fontSize);
-          text(val, 0, 0);
-
-        pop();
-
-      pop(); // end wedge s
+    const baseColor = P5_COLORS[circleIndex % P5_COLORS.length];
+    if (isHighlighted) {
+      ambientMaterial(HIGHLIGHT_COLOR[0], HIGHLIGHT_COLOR[1], HIGHLIGHT_COLOR[2]);
+    } else {
+      ambientMaterial(baseColor[0], baseColor[1], baseColor[2]);
     }
+
+    drawWedgeLocal(r, thickness, SEGMENT_ANGLE);
+
+    const midAngle = SEGMENT_ANGLE * 0.5;
+    const tx = r * 0.8 * cos(midAngle);
+    const ty = r * 0.8 * sin(midAngle);
+
+    push();
+    translate(tx, ty, thickness * 1.5);
+    rotateZ(-midAngle);
+
+    noStroke();
+    fill(0, 0, 0, 150);
+    rectMode(CENTER);
+    const fontSize = max(r * 0.06, 16);
+    textSize(fontSize);
+
+    const textWidthVal = textWidth(val);
+    rect(0, 0, textWidthVal + 10, fontSize * 1.5);
+
+    fill(255);
+    text(val, 0, 0);
+    pop();
+
+    pop();
+  }
   pop();
 }
 
-/**
- * Draw a single wedge from local angle=0 to local angle=wedgeAngle.
- * We do everything in local space, so we do not pass angleStart/angleEnd.
- */
 function drawWedgeLocal(r, thickness, wedgeAngle) {
-  const step = 5; // step for approximating the arc
+  const step = 5;
 
-  // Top Face
   beginShape();
   vertex(0, 0, thickness / 2);
   for (let a = 0; a <= wedgeAngle; a += step) {
@@ -254,7 +220,6 @@ function drawWedgeLocal(r, thickness, wedgeAngle) {
   }
   endShape(CLOSE);
 
-  // Side
   beginShape(QUAD_STRIP);
   for (let a = 0; a <= wedgeAngle; a += step) {
     let xx = r * cos(a);
@@ -264,7 +229,6 @@ function drawWedgeLocal(r, thickness, wedgeAngle) {
   }
   endShape();
 
-  // Bottom Face
   beginShape();
   vertex(0, 0, -thickness / 2);
   for (let a = 0; a <= wedgeAngle; a += step) {
@@ -290,11 +254,7 @@ function mousePressed() {
     if (distFromCenter <= outerR && distFromCenter > innerR) {
       activeCircleIndex = i;
       let angle = degrees(atan2(my, mx));
-
-      // Instead of "angle - currentRotation",
-      // invert sign to fix the "reverse" feeling
       dragStartAngle = angle + circles[i].currentRotation;
-
       circleStartAngle = circles[i].currentRotation;
       break;
     }
@@ -305,11 +265,8 @@ function mouseDragged() {
   if (activeCircleIndex === null) return;
   const [mx, my] = screenToPuzzle(mouseX, mouseY);
   let angle = degrees(atan2(my, mx));
-
-  // The difference is inverted so rotation goes in the opposite direction
   let delta = -(angle - dragStartAngle);
 
-  // Keep delta in -180..180
   if (delta > 180) delta -= 360;
   if (delta < -180) delta += 360;
 
@@ -342,23 +299,19 @@ function updateCircleTweens() {
   for (let i = 0; i < circles.length; i++) {
     let c = circles[i];
     if (c.tweening) {
-      // Increase duration for a slower, smoother snap
-      const duration = 600.0; 
+      const duration = 600.0;
       const t = (now - c.tweenStartTime) / duration;
       if (t >= 1.0) {
-        // Snap complete
         c.currentRotation = c.targetRotation;
         c.tweening = false;
 
-        let offsetDelta = round(c.targetRotation / SEGMENT_ANGLE);
+        let offsetDelta = -round(c.targetRotation / SEGMENT_ANGLE); // Fixed offset direction
         c.offset = (c.offset + offsetDelta + NUM_SEGMENTS) % NUM_SEGMENTS;
 
-        // Reset rotation since offset now accounts for the wedge shift
         c.currentRotation = 0;
         c.startRotation = 0;
         c.targetRotation = 0;
 
-        // Attempt merges
         performMergePass();
       } else {
         c.currentRotation = lerp(c.startRotation, c.targetRotation, t);
@@ -368,9 +321,10 @@ function updateCircleTweens() {
 }
 
 function performMergePass() {
-  // DO NOT TOUCH - merges remain the same
   let recentlyMerged = {};
-  function key(ci, si) { return ci + '-' + si; }
+  function key(ci, si) {
+    return `${ci}-${si}`;
+  }
 
   for (let i = 0; i < circles.length - 1; i++) {
     for (let s = 0; s < NUM_SEGMENTS; s++) {
@@ -381,15 +335,13 @@ function performMergePass() {
       const valA = A.numbers[segA];
       const valB = B.numbers[segB];
 
-      // If wedge s on circle A matches wedge s on circle B, merge them
-      if (valA === valB &&
-          !recentlyMerged[key(i, segA)] &&
-          !recentlyMerged[key(i + 1, segB)]) {
-
-        // For example, multiply by 2 in B, or any custom logic
+      if (
+        valA === valB &&
+        !recentlyMerged[key(i, segA)] &&
+        !recentlyMerged[key(i + 1, segB)]
+      ) {
         let newVal = valB * 2;
         B.numbers[segB] = newVal;
-        // Replace A's number with a new random, or zero, etc.
         A.numbers[segA] = random(ALLOWED_NUMBERS);
 
         score += newVal;
@@ -397,28 +349,21 @@ function performMergePass() {
         recentlyMerged[key(i, segA)] = true;
         recentlyMerged[key(i + 1, segB)] = true;
 
-        // Highlight both segments
         highlightSegment(i, segA, 1000);
         highlightSegment(i + 1, segB, 1000);
       }
     }
   }
-  hasRotated = false;
 }
 
 function highlightSegment(circleIndex, segmentIndex, durationMs) {
   highlightedSegments.push({
     circleIndex,
     segmentIndex,
-    expiresAt: millis() + durationMs
+    expiresAt: millis() + durationMs,
   });
 }
 
-/**
- * Simple approximate "screen to puzzle plane" function.
- * This is a simplified approach ignoring the full 3D camera transform,
- * but it works for typical top-down puzzle usage.
- */
 function screenToPuzzle(sx, sy) {
   let cx = sx - width / 2;
   let cy = sy - height / 2;
