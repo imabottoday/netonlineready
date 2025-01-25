@@ -1,285 +1,254 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <title>3D Fusion Rings Puzzle</title>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.6.0/p5.min.js"></script>
-    <style>
-        body { margin: 0; overflow: hidden; }
-        #ui { position: fixed; top: 20px; left: 20px; color: white; font-family: Arial; }
-    </style>
+  <meta charset="UTF-8">
+  <title>3D Number Fusion Puzzle</title>
+  <script src="https://cdn.jsdelivr.net/npm/p5@1.6.0/lib/p5.min.js"></script>
+  <style>
+    #game-ui {
+      position: fixed;
+      top: 20px;
+      left: 20px;
+      color: white;
+      font-family: Arial, sans-serif;
+    }
+  </style>
 </head>
 <body>
-    <div id="ui"></div>
+<div id="game-ui">
+  <h1>3D Puzzle</h1>
+  <div id="score"></div>
+  <div id="moves"></div>
+</div>
 <script>
-class GameState {
-    constructor() {
-        this.circles = [];
-        this.score = 0;
-        this.moves = 0;
-        this.targetScore = 2048;
-        this.activeRing = null;
-        this.rotationStart = 0;
-        this.lastRotation = 0;
-        this.particles = [];
-    }
-}
-
-const Constants = {
-    NUM_RINGS: 3,
-    SEGMENTS: 12,
-    ANGLE: 360/12,
-    RADII: [200, 140, 80],
-    COLORS: ['#FF6B6B', '#4ECDC4', '#45B7D1'],
-    NUMBERS: [1, 2, 4, 8, 16, 32, 64, 128],
-    Z_SPACING: 150,
-    RING_THICKNESS: 25
-};
-
-let state;
+/* --------------------------------------------------------
+   Globals and Game State
+-------------------------------------------------------- */
 let font;
+let state;
 
 function preload() {
-    font = loadFont('https://fonts.gstatic.com/s/roboto/v30/KFOmCnqEu92Fr1Mu4mxK.woff');
+  font = loadFont('https://fonts.gstatic.com/s/roboto/v30/KFOmCnqEu92Fr1Mu4mxK.woff');
 }
 
 function setup() {
-    createCanvas(windowWidth, windowHeight, WEBGL);
-    angleMode(DEGREES);
-    textFont(font);
-    initializeGame();
-}
+  createCanvas(windowWidth, windowHeight, WEBGL);
+  angleMode(DEGREES);
+  textFont(font);
 
-function initializeGame() {
-    state = new GameState();
-    
-    // Initialize rings with valid numbers
-    for(let i = 0; i < Constants.NUM_RINGS; i++) {
-        const numbers = Array(Constants.SEGMENTS).fill().map(() => {
-            let num;
-            do {
-                num = random(Constants.NUMBERS.filter(n => n <= 64));
-            } while(i > 0 && num === state.circles[i-1].numbers[0]);
-            return num;
-        });
-        
-        state.circles.push({
-            numbers,
-            rotation: 0,
-            offset: 0,
-            targetRotation: 0,
-            z: i * Constants.Z_SPACING,
-            color: Constants.COLORS[i]
-        });
-    }
-    ensureNoInitialMatches();
+  initGame();
 }
 
 function draw() {
-    background(30);
-    orbitControl(1, 1, 0.1); // Constrained camera
-    lights();
-    
-    updateRotations();
-    processMatches();
-    updateParticles();
-    
-    push();
-    rotateX(-30);
-    drawRings();
-    pop();
-    
-    drawUI();
-}
+  background(20);
+  orbitControl();
 
-function drawRings() {
-    state.circles.forEach((ring, i) => {
-        push();
-        translate(0, 0, -ring.z);
-        rotateZ(ring.rotation);
-        
-        for(let s = 0; s < Constants.SEGMENTS; s++) {
-            const numIndex = (s + ring.offset) % Constants.SEGMENTS;
-            const num = ring.numbers[numIndex];
-            const isMatch = checkVerticalMatch(i, s);
-            
-            push();
-            rotateZ(s * Constants.ANGLE);
-            drawSegment(ring, num, isMatch);
-            pop();
-        }
-        pop();
-    });
-}
-
-function drawSegment(ring, num, isMatch) {
-    // 3D Segment
-    fill(isMatch ? color(255, 215, 0) : color(ring.color));
-    noStroke();
-    
-    // Base wedge
-    beginShape();
-    vertex(0, 0, Constants.RING_THICKNESS/2);
-    for(let a = 0; a <= Constants.ANGLE; a += 5) {
-        const x = Constants.RADII[state.circles.indexOf(ring)] * cos(a);
-        const y = Constants.RADII[state.circles.indexOf(ring)] * sin(a);
-        vertex(x, y, Constants.RING_THICKNESS/2);
-    }
-    endShape(CLOSE);
-    
-    // Number display
-    push();
-    translate(
-        Constants.RADII[state.circles.indexOf(ring)] * 0.7 * cos(Constants.ANGLE/2),
-        Constants.RADII[state.circles.indexOf(ring)] * 0.7 * sin(Constants.ANGLE/2),
-        Constants.RING_THICKNESS
-    );
-    rotateZ(-Constants.ANGLE/2);
-    fill(0);
-    textSize(20);
-    text(num, 0, 0);
-    pop();
-}
-
-function processMatches() {
-    let merged = false;
-    
-    for(let i = 0; i < state.circles.length - 1; i++) {
-        const upper = state.circles[i];
-        const lower = state.circles[i + 1];
-        
-        for(let s = 0; s < Constants.SEGMENTS; s++) {
-            const upperNum = upper.numbers[(s + upper.offset) % Constants.SEGMENTS];
-            const lowerNum = lower.numbers[(s + lower.offset) % Constants.SEGMENTS];
-            
-            if(upperNum === lowerNum && upperNum < 128) {
-                // Valid merge
-                upper.numbers[(s + upper.offset) % Constants.SEGMENTS] = upperNum * 2;
-                lower.numbers[(s + lower.offset) % Constants.SEGMENTS] = 
-                    random(Constants.NUMBERS.filter(n => n <= upperNum));
-                
-                state.score += upperNum;
-                merged = true;
-                createParticles(s * Constants.ANGLE, i);
-            }
-        }
-    }
-    
-    if(merged) state.moves++;
-}
-
-function mousePressed() {
-    const mx = (mouseX - width/2) * 0.5;
-    const my = (mouseY - height/2) * 0.5;
-    const dist = sqrt(mx*mx + my*my);
-    
-    state.activeRing = state.circles.findIndex((ring, i) => 
-        dist > Constants.RADII[i+1] && dist <= Constants.RADII[i]
-    );
-    
-    if(state.activeRing !== -1) {
-        state.rotationStart = atan2(my, mx);
-        state.lastRotation = state.circles[state.activeRing].rotation;
-    }
-}
-
-function mouseDragged() {
-    if(state.activeRing === null) return;
-    
-    const mx = (mouseX - width/2) * 0.5;
-    const my = (mouseY - height/2) * 0.5;
-    const currentAngle = atan2(my, mx);
-    const delta = currentAngle - state.rotationStart;
-    
-    state.circles[state.activeRing].rotation = state.lastRotation + delta;
-}
-
-function mouseReleased() {
-    if(state.activeRing === null) return;
-    
-    // Snap to nearest segment
-    const ring = state.circles[state.activeRing];
-    const target = round(ring.rotation / Constants.ANGLE) * Constants.ANGLE;
-    ring.targetRotation = target;
-    
-    // Calculate new offset
-    const offsetChange = -round((target - ring.rotation) / Constants.ANGLE);
-    ring.offset = (ring.offset + offsetChange + Constants.SEGMENTS) % Constants.SEGMENTS;
-    
-    state.activeRing = null;
-}
-
-function updateRotations() {
-    state.circles.forEach(ring => {
-        if(abs(ring.rotation - ring.targetRotation) > 0.1) {
-            ring.rotation = lerp(ring.rotation, ring.targetRotation, 0.1);
-        }
-    });
-}
-
-// Helper functions
-function ensureNoInitialMatches() {
-    let hasMatches = true;
-    while(hasMatches) {
-        hasMatches = false;
-        for(let i = 0; i < state.circles.length - 1; i++) {
-            for(let s = 0; s < Constants.SEGMENTS; s++) {
-                if(state.circles[i].numbers[s] === state.circles[i+1].numbers[s]) {
-                    hasMatches = true;
-                    state.circles[i+1].numbers[s] = random(Constants.NUMBERS);
-                }
-            }
-        }
-    }
-}
-
-function checkVerticalMatch(ringIndex, segment) {
-    const base = state.circles[ringIndex].numbers[
-        (segment + state.circles[ringIndex].offset) % Constants.SEGMENTS
-    ];
-    return state.circles.every(r => 
-        r.numbers[(segment + r.offset) % Constants.SEGMENTS] === base
-    );
-}
-
-function createParticles(angle, ringIndex) {
-    for(let i = 0; i < 10; i++) {
-        state.particles.push({
-            pos: createVector(
-                Constants.RADII[ringIndex] * cos(angle),
-                Constants.RADII[ringIndex] * sin(angle),
-                -state.circles[ringIndex].z
-            ),
-            vel: p5.Vector.random3D().mult(3),
-            life: 255
-        });
-    }
-}
-
-function updateParticles() {
-    state.particles = state.particles.filter(p => {
-        p.pos.add(p.vel);
-        p.life -= 5;
-        push();
-        translate(p.pos.x, p.pos.y, p.pos.z);
-        fill(255, 215, 0, p.life);
-        sphere(3);
-        pop();
-        return p.life > 0;
-    });
-}
-
-function drawUI() {
-    document.getElementById('ui').innerHTML = `
-        Score: ${state.score}<br>
-        Moves: ${state.moves}<br>
-        ${state.score >= state.targetScore ? 'YOU WIN!' : ''}
-    `;
+  updateParticles();
+  drawGame();
+  updateUI();
 }
 
 function windowResized() {
-    resizeCanvas(windowWidth, windowHeight);
+  resizeCanvas(windowWidth, windowHeight);
 }
+
+/* --------------------------------------------------------
+   Game State and Initialization
+-------------------------------------------------------- */
+function initGame() {
+  state = {
+    score: 0,
+    moves: 0,
+    targetScore: 2048,
+    particles: [],
+    circles: [],
+    isGameOver: false,
+  };
+
+  const zSpacing = 150;
+  for (let i = 0; i < 3; i++) {
+    const circle = {
+      radius: 200 - i * 50,
+      zPos: i * zSpacing,
+      rotation: 0,
+      numbers: Array(12).fill().map(() => randomValidNumber()),
+    };
+    state.circles.push(circle);
+  }
+
+  ensureNoInitialMatches();
+}
+
+function ensureNoInitialMatches() {
+  for (let i = 0; i < state.circles.length - 1; i++) {
+    for (let s = 0; s < 12; s++) {
+      while (state.circles[i].numbers[s] === state.circles[i + 1].numbers[s]) {
+        state.circles[i + 1].numbers[s] = randomValidNumber();
+      }
+    }
+  }
+}
+
+function randomValidNumber() {
+  const allowedNumbers = [1, 2, 4, 8, 16, 32, 64, 128];
+  return random(allowedNumbers);
+}
+
+/* --------------------------------------------------------
+   Rendering
+-------------------------------------------------------- */
+function drawGame() {
+  for (let i = 0; i < state.circles.length; i++) {
+    drawCircle(state.circles[i], i);
+  }
+}
+
+function drawCircle(circle, index) {
+  push();
+  translate(0, 0, -circle.zPos);
+  rotateZ(circle.rotation);
+
+  const colorBase = lerpColor(
+    color(200, 100, 150),
+    color(100, 200, 250),
+    index / state.circles.length
+  );
+
+  for (let s = 0; s < 12; s++) {
+    const num = circle.numbers[s];
+    push();
+    rotateZ(s * 360 / 12);
+    drawSegment(circle.radius, num, colorBase);
+    pop();
+  }
+  pop();
+}
+
+function drawSegment(radius, num, baseColor) {
+  const wedgeAngle = 360 / 12;
+
+  // Draw the wedge
+  beginShape();
+  fill(baseColor);
+  for (let a = 0; a <= wedgeAngle; a += 5) {
+    const x = radius * cos(a);
+    const y = radius * sin(a);
+    vertex(x, y);
+  }
+  vertex(0, 0);
+  endShape(CLOSE);
+
+  // Add text
+  const midAngle = wedgeAngle / 2;
+  const tx = radius * 0.8 * cos(midAngle);
+  const ty = radius * 0.8 * sin(midAngle);
+
+  push();
+  translate(tx, ty, 10);
+  rotateZ(-midAngle);
+
+  fill(0, 200);
+  rectMode(CENTER);
+  rect(0, 0, textWidth(num) + 10, 30, 5);
+
+  fill(255);
+  textSize(20);
+  text(num, 0, 5);
+  pop();
+}
+
+/* --------------------------------------------------------
+   Particles
+-------------------------------------------------------- */
+function createMergeEffect(x, y, z) {
+  for (let i = 0; i < 15; i++) {
+    state.particles.push({
+      pos: createVector(x, y, z),
+      vel: p5.Vector.random3D().mult(random(2, 5)),
+      color: [255, 200, 0],
+      life: 1.0,
+    });
+  }
+}
+
+function updateParticles() {
+  for (let p of state.particles) {
+    p.pos.add(p.vel);
+    p.life -= 0.02;
+  }
+  state.particles = state.particles.filter(p => p.life > 0);
+
+  for (let p of state.particles) {
+    push();
+    translate(p.pos.x, p.pos.y, p.pos.z);
+    noStroke();
+    fill(...p.color, p.life * 255);
+    sphere(3);
+    pop();
+  }
+}
+
+/* --------------------------------------------------------
+   User Input
+-------------------------------------------------------- */
+function mouseDragged() {
+  const circle = getHoveredCircle();
+  if (circle) {
+    const dx = movedX * 0.1;
+    circle.rotation += dx;
+  }
+}
+
+function mouseReleased() {
+  const circle = getHoveredCircle();
+  if (circle) {
+    snapToClosestSegment(circle);
+    processMatches();
+  }
+}
+
+function getHoveredCircle() {
+  const mouseZ = 0;
+  for (let circle of state.circles) {
+    const distToCircle = abs(mouseZ - circle.zPos);
+    if (distToCircle < 50) return circle;
+  }
+  return null;
+}
+
+function snapToClosestSegment(circle) {
+  const snappedRotation = round(circle.rotation / (360 / 12)) * (360 / 12);
+  circle.rotation = snappedRotation;
+}
+
+function processMatches() {
+  for (let i = 0; i < state.circles.length - 1; i++) {
+    const upper = state.circles[i];
+    const lower = state.circles[i + 1];
+    for (let s = 0; s < 12; s++) {
+      if (upper.numbers[s] === lower.numbers[s]) {
+        const mergedValue = upper.numbers[s] * 2;
+        upper.numbers[s] = mergedValue;
+        lower.numbers[s] = randomValidNumber();
+        createMergeEffect(0, 0, -upper.zPos); // Approximate particle position
+        state.score += mergedValue;
+      }
+    }
+  }
+}
+
+/* --------------------------------------------------------
+   UI and Feedback
+-------------------------------------------------------- */
+function updateUI() {
+  const ui = document.getElementById('game-ui');
+  ui.innerHTML = `
+    <h1>3D Number Puzzle</h1>
+    <p>Score: ${state.score}</p>
+    <p>Moves: ${state.moves}</p>
+  `;
+}
+
 </script>
 </body>
 </html>
