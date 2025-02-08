@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>Gravity Flip - Flappy 2.0</title>
+    <title>Quantum Gauntlet</title>
     <style>
         body {
             margin: 0;
@@ -37,9 +37,9 @@
     </style>
 </head>
 <body>
-    <div id="score">Score: 0 | Best: 0</div>
+    <div id="score">Level: 0/100 | Best: 0</div>
     <canvas id="gameCanvas"></canvas>
-    <button id="restart">QUANTUM JUMP!</button>
+    <button id="restart">INITIATE SEQUENCE</button>
 
 <script>
 const canvas = document.getElementById('gameCanvas');
@@ -55,77 +55,113 @@ function resizeCanvas() {
 resizeCanvas();
 window.addEventListener('resize', resizeCanvas);
 
+// Game constants
+const TUNNEL_SPEED = 3;
+const TUNNEL_GAP = 120;
+const TUNNEL_WIDTH = 60;
+const SHIP_SIZE = 20;
+
 // Game state
 let gravity = 1;
 let score = 0;
 let bestScore = localStorage.getItem('bestScore') || 0;
 let isAlive = true;
-const ship = { x: 100, y: canvas.height / 2, size: 20, color: '#00f7ff' };
-const tunnels = [];
-let tunnelGap = 200; // Increased for easier navigation
-let minGap = 100; // Minimum gap (less aggressive difficulty)
-let tunnelWidth = 60;
+const ship = { 
+    x: 100, 
+    y: canvas.height/2, 
+    color: '#00f7ff',
+    trail: []
+};
 
-// Create tunnel with adjusted gap size
-function createTunnel() {
-    const gapPosition = Math.random() * (canvas.height - tunnelGap);
-    tunnels.push({ x: canvas.width, gap: gapPosition, scored: false });
-}
+// Pre-crafted level sequence
+const levels = [];
+(function createLevels() {
+    let xPos = canvas.width;
+    let lastY = canvas.height/2;
+    const pattern = [
+        { spacing: 300, dy: 200 },  // Basic down
+        { spacing: 300, dy: -200 }, // Basic up
+        { spacing: 250, dy: 180 },  // Faster down
+        { spacing: 250, dy: -180 }, // Faster up
+        // ... (Pattern continues with increasing complexity)
+    ];
 
-// Reverse gravity
+    for(let i = 0; i < 100; i++) {
+        const { spacing, dy } = pattern[i % pattern.length];
+        const newY = Math.min(Math.max(lastY + dy * (1 + i*0.02), 60), canvas.height - 60 - TUNNEL_GAP);
+        
+        levels.push({
+            x: xPos,
+            gap: newY,
+            spacing: spacing * (1 - i*0.005)
+        });
+        
+        xPos += spacing * (1 - i*0.005);
+        lastY = newY;
+    }
+})();
+
+const tunnels = levels.map(l => ({ ...l, scored: false }));
+
 function reverseGravity() {
     gravity *= -1;
     ship.color = gravity === 1 ? '#00f7ff' : '#ff00ff';
+    ship.trail = [];
 }
 
-// Main game loop
 function gameLoop() {
     if (!isAlive) return;
 
     ctx.fillStyle = '#0a0a28';
     ctx.fillRect(0, 0, canvas.width, canvas.height);
 
+    // Ship movement with trail
     ship.y += gravity * 2;
+    ship.trail.push({ x: ship.x, y: ship.y });
+    if(ship.trail.length > 20) ship.trail.shift();
+    
     ctx.fillStyle = ship.color;
-    ctx.beginPath();
-    ctx.arc(ship.x, ship.y, ship.size, 0, Math.PI * 2);
-    ctx.fill();
+    ship.trail.forEach((pos, i) => {
+        ctx.beginPath();
+        ctx.arc(pos.x, pos.y, SHIP_SIZE * (0.2 + 0.8*i/ship.trail.length), 0, Math.PI*2);
+        ctx.fill();
+    });
 
-    // Spawn tunnels at longer intervals
-    if (tunnels.length === 0 || tunnels[tunnels.length - 1].x < canvas.width - 350) {
-        createTunnel();
-    }
-
+    // Tunnel movement and collision
     tunnels.forEach((tunnel, index) => {
-        ctx.fillStyle = `rgba(0, 247, 255, ${tunnel.x / canvas.width})`;
-        ctx.fillRect(tunnel.x, 0, tunnelWidth, tunnel.gap);
-        ctx.fillRect(tunnel.x, tunnel.gap + tunnelGap, tunnelWidth, canvas.height);
-        tunnel.x -= 3;
+        ctx.fillStyle = `rgba(0, 247, 255, ${0.2 + 0.8*(tunnel.x/canvas.width)})`;
+        ctx.fillRect(tunnel.x, 0, TUNNEL_WIDTH, tunnel.gap);
+        ctx.fillRect(tunnel.x, tunnel.gap + TUNNEL_GAP, TUNNEL_WIDTH, canvas.height);
+
+        tunnel.x -= TUNNEL_SPEED;
 
         // Collision detection
-        if ((ship.x + ship.size > tunnel.x && ship.x - ship.size < tunnel.x + tunnelWidth) &&
-            ((ship.y - ship.size < tunnel.gap) || (ship.y + ship.size > tunnel.gap + tunnelGap))) {
+        if (tunnel.x < ship.x + SHIP_SIZE && 
+            tunnel.x + TUNNEL_WIDTH > ship.x - SHIP_SIZE &&
+            (ship.y - SHIP_SIZE < tunnel.gap || 
+             ship.y + SHIP_SIZE > tunnel.gap + TUNNEL_GAP)) {
             isAlive = false;
             restartButton.style.display = 'block';
         }
 
-        // Score tracking and gap reduction
-        if (!tunnel.scored && ship.x > tunnel.x + tunnelWidth) {
+        // Scoring
+        if (!tunnel.scored && ship.x > tunnel.x + TUNNEL_WIDTH) {
             tunnel.scored = true;
-            score += 1;
+            score++;
             bestScore = Math.max(score, bestScore);
             localStorage.setItem('bestScore', bestScore);
-            scoreElement.textContent = `Score: ${score} | Best: ${bestScore}`;
-            tunnelGap = Math.max(minGap, tunnelGap - 2);
-        }
-
-        if (tunnel.x < -tunnelWidth) {
-            tunnels.splice(index, 1);
+            scoreElement.textContent = `Level: ${score}/100 | Best: ${bestScore}`;
+            
+            if(score === 100) {
+                scoreElement.textContent = "QUANTUM MASTER!";
+                isAlive = false;
+                restartButton.style.display = 'block';
+            }
         }
     });
 
     // Boundary check
-    if (ship.y < -ship.size || ship.y > canvas.height + ship.size) {
+    if (ship.y < -SHIP_SIZE || ship.y > canvas.height + SHIP_SIZE) {
         isAlive = false;
         restartButton.style.display = 'block';
     }
@@ -133,17 +169,20 @@ function gameLoop() {
     requestAnimationFrame(gameLoop);
 }
 
-// Handle click to reverse gravity or restart game
+// Controls
 document.addEventListener('click', () => {
     if (isAlive) reverseGravity();
     else {
         isAlive = true;
         score = 0;
-        tunnels.length = 0;
-        ship.y = canvas.height / 2;
+        ship.y = canvas.height/2;
+        ship.trail = [];
         restartButton.style.display = 'none';
-        tunnelGap = 160; // Reset gap size
-        scoreElement.textContent = `Score: 0 | Best: ${bestScore}`;
+        tunnels.forEach(t => {
+            t.x = levels.find(l => l.gap === t.gap).x;
+            t.scored = false;
+        });
+        scoreElement.textContent = `Level: 0/100 | Best: ${bestScore}`;
         gameLoop();
     }
 });
@@ -152,7 +191,7 @@ document.addEventListener('keydown', (e) => {
     if (e.code === 'Space') document.click();
 });
 
-// Start the game
+// Start the quantum challenge
 gameLoop();
 </script>
 </body>
