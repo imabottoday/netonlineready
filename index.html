@@ -21,7 +21,7 @@
             position: fixed;
             top: 20px;
             color: #00f7ff;
-            font-size: 40px;
+            font-size: 30px;
             text-shadow: 0 0 10px #00f7ff;
         }
         #restart {
@@ -37,7 +37,7 @@
     </style>
 </head>
 <body>
-    <div id="score">0</div>
+    <div id="score">Score: 0 | Best: 0</div>
     <canvas id="gameCanvas"></canvas>
     <button id="restart">QUANTUM JUMP!</button>
 
@@ -47,7 +47,6 @@ const ctx = canvas.getContext('2d');
 const scoreElement = document.getElementById('score');
 const restartButton = document.getElementById('restart');
 
-// Dynamic canvas sizing
 function resizeCanvas() {
     canvas.width = Math.min(window.innerWidth - 20, 400);
     canvas.height = 600;
@@ -55,28 +54,18 @@ function resizeCanvas() {
 resizeCanvas();
 window.addEventListener('resize', resizeCanvas);
 
-// Game state
 let gravity = 1;
 let score = 0;
+let bestScore = localStorage.getItem('bestScore') || 0;
 let isAlive = true;
-const ship = {
-    x: 100,
-    y: canvas.height/2,
-    size: 20,
-    color: '#00f7ff'
-};
+const ship = { x: 100, y: canvas.height / 2, size: 20, color: '#00f7ff' };
 const tunnels = [];
 let tunnelGap = 120;
 let tunnelWidth = 60;
 
-// Quantum physics engine
 function createTunnel() {
     const gapPosition = Math.random() * (canvas.height - tunnelGap);
-    tunnels.push({
-        x: canvas.width,
-        gap: gapPosition,
-        scored: false
-    });
+    tunnels.push({ x: canvas.width, gap: gapPosition, scored: false });
 }
 
 function reverseGravity() {
@@ -90,50 +79,42 @@ function gameLoop() {
     ctx.fillStyle = '#0a0a28';
     ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-    // Ship physics
     ship.y += gravity * 2;
     ctx.fillStyle = ship.color;
     ctx.beginPath();
     ctx.arc(ship.x, ship.y, ship.size, 0, Math.PI * 2);
     ctx.fill();
 
-    // Quantum tunnel management
-    if (tunnels.length === 0 || tunnels[tunnels.length-1].x < canvas.width - 300) {
+    if (tunnels.length === 0 || tunnels[tunnels.length - 1].x < canvas.width - 350) {
         createTunnel();
     }
 
-    // Tunnel rendering and collision
     tunnels.forEach((tunnel, index) => {
-        ctx.fillStyle = `rgba(0, 247, 255, ${tunnel.x/canvas.width})`;
+        ctx.fillStyle = `rgba(0, 247, 255, ${tunnel.x / canvas.width})`;
         ctx.fillRect(tunnel.x, 0, tunnelWidth, tunnel.gap);
         ctx.fillRect(tunnel.x, tunnel.gap + tunnelGap, tunnelWidth, canvas.height);
-
         tunnel.x -= 3;
 
-        // Collision detection
-        if (
-            (ship.x + ship.size > tunnel.x && ship.x - ship.size < tunnel.x + tunnelWidth) &&
-            ((ship.y - ship.size < tunnel.gap) || (ship.y + ship.size > tunnel.gap + tunnelGap))
-        ) {
+        if ((ship.x + ship.size > tunnel.x && ship.x - ship.size < tunnel.x + tunnelWidth) &&
+            ((ship.y - ship.size < tunnel.gap) || (ship.y + ship.size > tunnel.gap + tunnelGap))) {
             isAlive = false;
             restartButton.style.display = 'block';
         }
 
-        // Scoring
         if (!tunnel.scored && ship.x > tunnel.x + tunnelWidth) {
             tunnel.scored = true;
             score += 1;
-            scoreElement.textContent = score;
+            bestScore = Math.max(score, bestScore);
+            localStorage.setItem('bestScore', bestScore);
+            scoreElement.textContent = `Score: ${score} | Best: ${bestScore}`;
             tunnelGap = Math.max(80, tunnelGap - 2);
         }
 
-        // Remove off-screen tunnels
         if (tunnel.x < -tunnelWidth) {
             tunnels.splice(index, 1);
         }
     });
 
-    // Boundary check
     if (ship.y < -ship.size || ship.y > canvas.height + ship.size) {
         isAlive = false;
         restartButton.style.display = 'block';
@@ -142,17 +123,16 @@ function gameLoop() {
     requestAnimationFrame(gameLoop);
 }
 
-// Quantum entanglement (controls)
 document.addEventListener('click', () => {
     if (isAlive) reverseGravity();
     else {
         isAlive = true;
         score = 0;
         tunnels.length = 0;
-        ship.y = canvas.height/2;
+        ship.y = canvas.height / 2;
         restartButton.style.display = 'none';
         tunnelGap = 120;
-        scoreElement.textContent = '0';
+        scoreElement.textContent = `Score: 0 | Best: ${bestScore}`;
         gameLoop();
     }
 });
@@ -161,7 +141,6 @@ document.addEventListener('keydown', (e) => {
     if (e.code === 'Space') document.click();
 });
 
-// Initiate quantum singularity
 gameLoop();
 </script>
 </body>
